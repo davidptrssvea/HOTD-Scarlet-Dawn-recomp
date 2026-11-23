@@ -2,7 +2,7 @@
 
 ## Installera
 
-1. Hämta **ScarletDawn-Local-Builder-v1.0.0.zip** från [GitHub Releases](https://github.com/davidptrssvea/HOTD-Scarlet-Dawn-recomp/releases/latest) och packa upp.
+1. Hämta **ScarletDawn-Local-Builder** som ZIP från [GitHub Releases](https://github.com/davidptrssvea/HOTD-Scarlet-Dawn-recomp/releases/latest) och packa upp.
 2. Kör **Setup.cmd** och välj din egen uppackade **Scarlet Dawn (2018) Export**. Du kan välja dumpens huvudmapp eller **WindowsNoEditor**.
 3. Öppna **ScarletDawn-PC → Play Scarlet Dawn.exe** när installationen är klar.
 

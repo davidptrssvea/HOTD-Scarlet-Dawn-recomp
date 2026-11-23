@@ -8,6 +8,15 @@ function ConvertTo-HotdVersion([string]$Tag) {
     if ($Tag -match '^v\d{1,5}\.\d{1,5}\.\d{1,5}$') { [version]$Tag.Substring(1) }
 }
 
+function Get-HotdPackageSHA256([string]$Path) {
+    $hash = [Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        try { [BitConverter]::ToString($hash.ComputeHash($stream)).Replace('-', '') }
+        finally { $stream.Dispose() }
+    } finally { $hash.Dispose() }
+}
+
 function Get-HotdReleasePackage($Game, $Release) {
     if ($Release.tag_name -notmatch '^v\d{1,5}\.\d{1,5}\.\d{1,5}$' -or $Release.draft -or $Release.prerelease) {
         throw 'GitHub did not return a stable release.'
@@ -118,7 +127,7 @@ function Confirm-ScarletProgramPackage([string]$Bundle, [string]$Tag) {
             throw 'Invalid installer manifest entry.'
         }
         $file=Join-Path $Bundle $name
-        if (![IO.File]::Exists($file) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $entry.sha256) {
+        if (![IO.File]::Exists($file) -or (Get-HotdPackageSHA256 $file) -ne $entry.sha256) {
             throw "Installer file failed verification: $name"
         }
     }
@@ -170,7 +179,7 @@ function Invoke-HotdUpdateWorker([string]$Request) {
         [IO.File]::WriteAllText($status,'Downloading and verifying the installer...')
         Invoke-WebRequest -UseBasicParsing -TimeoutSec 90 -Uri $url -OutFile $zip
         if ((Get-Item -LiteralPath $zip).Length -ne $job.Package.Size -or
-            (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne $job.Package.Hash) {
+            (Get-HotdPackageSHA256 $zip) -ne $job.Package.Hash) {
             throw 'Installer ZIP verification failed.'
         }
         $bundle=Expand-HotdUpdateBundle $zip $work $game.Bundle
