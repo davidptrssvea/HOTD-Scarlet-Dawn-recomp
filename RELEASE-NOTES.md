@@ -1,4 +1,4 @@
-# Scarlet Dawn PC v1.0.4 - Updater progress and cancellation
+# Scarlet Dawn PC v1.0.5 - Updater progress and cancellation
 
 - The launcher shows the current update step and elapsed time. You can Alt+Tab to another app while the update runs.
 - See download progress, package verification, extraction, and when the update is ready to install.

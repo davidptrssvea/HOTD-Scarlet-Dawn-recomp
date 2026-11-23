@@ -56,28 +56,33 @@ foreach ($mode in 'Button','Close','Ready') {
     $ownerWindow.Show()
     $dialogCheck=${function:Show-HotdUpdateDialog}
     $observed=@{Error=$null;Shown=$false}
+    $test=@{ Mode=$mode; Fixture=$fixture; Status=$status; Observed=$observed; SetStatus=${function:Set-HotdUpdateStatus} }
     $checkDialog={
         param($Parent,$Dialog)
+        $localTest=$test
         $check=[Windows.Threading.DispatcherTimer]::new()
         $check.Interval=[TimeSpan]::FromMilliseconds(1000)
         $check.Add_Tick({
             $check.Stop()
             try {
-                Assert (!$Parent.Topmost -and !$Dialog.Topmost) 'An updater window stayed above other apps.'
+                if ($Parent.Topmost -or $Dialog.Topmost) { throw 'An updater window stayed above other apps.' }
                 $elements=$Dialog.Content.Children
-                Assert ($elements[0].Text -eq 'Installing build tools...') 'Live progress did not reach the dialog.'
-                Assert ($elements[2].Text -like 'Elapsed 00:00:0?') 'Elapsed time did not reach the dialog.'
-                if ($mode -eq 'Ready') {
-                    Set-HotdUpdateStatus $status 'Ready'
-                    $observed.Shown=$true
-                    return
+                if ($elements[0].Text -ne 'Installing build tools...') { throw 'Live progress did not reach the dialog.' }
+                if ($elements[2].Text -notlike 'Elapsed 00:00:0?') { throw 'Elapsed time did not reach the dialog.' }
+                if ($localTest.Mode -eq 'Ready') {
+                    & $localTest.SetStatus $localTest.Status 'Ready'
+                } else {
+                    if ($localTest.Mode -eq 'Close') { $Dialog.Close() }
+                    else { $elements[3].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent)) }
+                    if (![IO.File]::Exists((Join-Path $localTest.Fixture 'cancel.txt'))) { throw 'The dialog did not request cancellation.' }
                 }
-                if ($mode -eq 'Close') { $Dialog.Close() }
-                else { $elements[3].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent)) }
-                Assert ([IO.File]::Exists((Join-Path $fixture 'cancel.txt'))) "$mode did not request cancellation."
-                $observed.Shown=$true
-            } catch { $observed.Error=$_ }
-            finally { if ($mode -ne 'Ready' -or $observed.Error) { Set-HotdUpdateStatus $status 'Cancelled' } }
+                $localTest.Observed.Shown=$true
+            } catch { $localTest.Observed.Error=$_ }
+            finally {
+                if ($localTest.Mode -ne 'Ready' -or $localTest.Observed.Error) {
+                    & $localTest.SetStatus $localTest.Status 'Cancelled'
+                }
+            }
         }.GetNewClosure())
         $check.Start()
         try { & $dialogCheck $Parent $Dialog }

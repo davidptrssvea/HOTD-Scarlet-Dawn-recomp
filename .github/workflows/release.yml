@@ -1,0 +1,64 @@
+name: Release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  windows-checks:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test updater progress and cancellation
+        shell: powershell
+        run: ./.release/test_update_progress.ps1
+      - name: Validate the builder package
+        shell: powershell
+        run: |
+          $version = (Get-Content -Raw scarlet-version.txt).Trim()
+          if ($version -notmatch '^v\d+\.\d+\.\d+$') { throw 'Invalid builder version.' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $version) {
+            throw 'The release tag must match scarlet-version.txt.'
+          }
+          python .release/package.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- package-manifest.json
+  publish:
+    needs: windows-checks
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency: scarlet-release-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the builder and publish on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          archive="dist/ScarletDawn-Local-Builder-$tag.zip"
+          python3 .release/package.py
+          git diff --exit-code -- package-manifest.json
+          if ! draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"; then
+            gh release create "$tag" --verify-tag --draft \
+              --title "Scarlet Dawn PC Local Builder $tag" --notes-file RELEASE-NOTES.md
+            draft=true
+          fi
+          if [[ "$draft" == true ]]; then
+            gh release upload "$tag" "$archive" --clobber
+          fi
+          digest="sha256:$(sha256sum "$archive" | cut -d ' ' -f 1)"
+          release_id="$(gh release view "$tag" --json databaseId --jq .databaseId)"
+          uploaded="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets" |
+            jq -r --arg asset "$(basename "$archive")" '.[] | select(.state == "uploaded" and .name == $asset) | .digest')"
+          [[ "$uploaded" == "$digest" ]]
+          if [[ "$draft" == true ]]; then
+            gh release edit "$tag" --draft=false --latest
+          fi
+          [[ "$(gh release view "$tag" --json isDraft --jq .isDraft)" == false ]]
