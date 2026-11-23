@@ -4,15 +4,15 @@
   "files": [
     {
       "path": "Launcher.cs",
-      "sha256": "2af9564482689a525b1cfd6d693b0aef88dd6267fa4481286f80ec8eba7f5982"
+      "sha256": "18c4d81283906e33cc65e9d019bb01f4ac3ad11b40adc3be57805f3a2b5d0f8a"
     },
     {
       "path": "Play Scarlet Dawn.exe",
-      "sha256": "9dc898c1dbe5cf740522ed4cf3fd76b3b14e9a35723667767909440b51f777a8"
+      "sha256": "5fbf0c91236460bd9a2a586da9dac20bd7e4edb06e6ef96c78c5a842fa9f34c1"
     },
     {
       "path": "README.md",
-      "sha256": "87f3a25a9f467ddd007b5eefe78825c34e6dcd69607bf50d78db6ebf4b117a97"
+      "sha256": "526bf95775cab5bca73cf69880b8a56dc66c5939fb6912b6b700ba767e600e93"
     },
     {
       "path": "RELEASE-NOTES.md",
@@ -44,7 +44,7 @@
     },
     {
       "path": "scarlet-menu.ps1",
-      "sha256": "c95632f265ed64aec95cdca37c240fbcfc7490889a7848b7a9a6aa9fe52fb208"
+      "sha256": "006a5ec58101ed924f59f0c5f40cca003f2c7b5ad92a08669b6793bb1e43762e"
     },
     {
       "path": "scarlet-menu.xaml",
@@ -56,7 +56,7 @@
     },
     {
       "path": "scarlet-settings.ps1",
-      "sha256": "3801e027916f5afc5e9238836e0de29c45897a636238e48d4384b4c463c9cbdd"
+      "sha256": "896821fc7d4c795528941d7d58f3ab9fb971b6427fdb2bbf0cc8d8aabb6031e7"
     },
     {
       "path": "scarlet-update.ps1",

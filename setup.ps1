@@ -101,6 +101,8 @@ try {
     Install-HotdManagedFiles $program $InstallDir (Join-Path $work 'backup') $files
     $settings=Get-ScarletSettings $InstallDir
     [void](New-ScarletStartInfo $InstallDir $settings)
+    try { Register-Hotd4Installation $InstallDir Scarlet }
+    catch { Write-Warning 'The game was installed, but automatic library registration failed. Use Locate installed game in the Game Library.' }
     Write-Host "Installed $tag. Open $(Join-Path $InstallDir 'Play Scarlet Dawn.exe')."
 } finally {
     $lock.Dispose()

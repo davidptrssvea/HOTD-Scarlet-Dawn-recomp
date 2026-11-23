@@ -10,6 +10,10 @@ Du behöver Windows 10 eller 11 (64 bitar) och plats för en lokal kopia av spel
 
 Du kan också ange **-DumpPath** och **-InstallDir** till **setup.ps1**. Om den stödda spelkopian redan finns under **Game** i målmappen kan Setup installera programfilerna där.
 
+## Spelbibliotek
+
+Öppna **Game Library** i huvudmenyn för att välja mellan installerade exemplar av HOTD4, HOTD4 Special, HOTD EX och Scarlet Dawn. **Play** startar spelet med sparade inställningar, **Settings** öppnar spelets inställningar och **Menu** öppnar spelets vanliga startmeny. Använd **Locate installed game...** om en befintlig installation saknas.
+
 ## Uppdateringar
 
 **Updates** i huvudmenyn visar installerad version och senaste ändringar från GitHub. Välj **Download and install** om en nyare version finns. Startaren verifierar ZIP-filen innan den byter programfiler och öppnar menyn igen. **Game** och **Local** med inställningar, profiler och lokala ljudfiler finns kvar efter uppdateringen.

@@ -1,5 +1,7 @@
 ﻿[CmdletBinding()]
-param([switch]$ValidateOnly, [switch]$PrepareOnly)
+param([switch]$ValidateOnly, [switch]$PrepareOnly,
+      [ValidateSet('Menu','Settings','Play')][string]$StartMode='Menu')
+# HOTD Game Library
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'scarlet-settings.ps1')
@@ -274,7 +276,7 @@ $controls.Target.Add_MouseDown({
     [Windows.Controls.Canvas]::SetTop($controls.Dot,$position.Y-6)
     $controls.Dot.Visibility='Visible'
 })
-$run = @{ Child=$null; Lock=$null }
+$run = @{ Child=$null; Lock=$null; StartFromLibrary=($StartMode -eq "Play") }
 $timer = [Windows.Threading.DispatcherTimer]::new()
 $timer.Interval = [TimeSpan]::FromMilliseconds(250)
 $timer.Add_Tick({
@@ -284,7 +286,7 @@ $timer.Add_Tick({
     $run.Child.Dispose()
     $run.Lock.Dispose()
     $run.Child=$run.Lock=$null
-    $controls.Play.IsEnabled=$controls.Options.IsEnabled=$true
+    $controls.Play.IsEnabled=$controls.Options.IsEnabled=$controls.GameLibrary.IsEnabled=$true
     $window.WindowState='Normal'
     [void]$window.Activate()
     $controls.Status.Text = if ($code) { "Game exited with code $code. See Local/Logs." } else { 'Game closed' }
@@ -295,7 +297,7 @@ $controls.Play.Add_Click({
         $run.Lock = [IO.File]::Open((Join-Path $root 'Local/Run.lock'),'OpenOrCreate','ReadWrite','None')
         $launch = New-ScarletStartInfo $root $settings
         $run.Child = [Diagnostics.Process]::Start($launch.Process)
-        $controls.Play.IsEnabled=$controls.Options.IsEnabled=$false
+        $controls.Play.IsEnabled=$controls.Options.IsEnabled=$controls.GameLibrary.IsEnabled=$false
         $window.WindowState='Minimized'
         $timer.Start()
     } catch {
@@ -321,6 +323,13 @@ $window.Add_PreviewKeyDown({
     $eventArgs.Handled=$true
 })
 . (Join-Path $root 'scarlet-update.ps1')
+$controls.GameLibrary=Add-Hotd4GameSwitcher $window $controls.MainPage $root Scarlet $controls.Play $controls.Options
 Add-HotdUpdater $window $controls.MainPage $root
-$window.Add_ContentRendered({ [void]$controls.Play.Focus() })
+$window.Add_ContentRendered({
+    if ($StartMode -eq 'Settings') { & $loadSettings; & $showPage 'Settings'; [void]$controls.Resolution.Focus() }
+    elseif ($run.StartFromLibrary) {
+        $run.StartFromLibrary=$false
+        $controls.Play.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    } else { [void]$controls.Play.Focus() }
+})
 [void]$window.ShowDialog()
