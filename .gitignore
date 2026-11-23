@@ -1,0 +1,7 @@
+/Game/
+/Local/
+/ScarletDawn-PC/
+/dist/
+.scarlet-update-*/
+*.previous
+__pycache__/

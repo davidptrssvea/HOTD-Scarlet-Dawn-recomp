@@ -1,0 +1,201 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="The House of the Dead · Scarlet Dawn" Width="1060" Height="650" MinWidth="820" MinHeight="570"
+        WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" Background="#0B0C10" Foreground="#F2EDF0">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Foreground" Value="#F2EDF0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="Surface" Background="#232631" BorderBrush="#444858" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#672C35"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#EE796F"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#8D353F"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,4,0,12"/>
+            <Setter Property="Padding" Value="7,5"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,4,0,12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#F2EDF0"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                <GradientStop Color="#311621" Offset="0"/>
+                <GradientStop Color="#0B0C10" Offset="0.55"/>
+                <GradientStop Color="#111420" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+        <Grid Margin="48,34">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="440"/></Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center" Margin="0,0,26,24">
+                <TextBlock Text="THE HOUSE OF THE DEAD" FontSize="21" FontWeight="SemiBold" Foreground="#E8D9DF"/>
+                <TextBlock Text="SCARLET" FontSize="61" FontWeight="Black" Foreground="#EE796F"/>
+                <TextBlock Text="DAWN" FontSize="61" FontWeight="Black" Margin="0,-15,0,18"/>
+                <TextBlock Text="PC preview" Foreground="#D9A19F" FontSize="15"/>
+            </StackPanel>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel Name="MainPage" VerticalAlignment="Center">
+                    <Button Name="Play" Content="Start Scarlet Dawn" Padding="14,13"/>
+                    <Button Name="Options" Content="Settings" Padding="14,13"/>
+                    <Button Name="InputTest" Content="Input Test" Padding="14,13"/>
+                    <Button Name="Quit" Content="Quit" Padding="14,13"/>
+                </StackPanel>
+                <ScrollViewer Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock Text="Graphics" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="143"/></Grid.ColumnDefinitions>
+                            <ComboBox Name="Preset" AutomationProperties.Name="Graphics preset" Margin="0,0,10,8"/>
+                            <Button Name="ApplyPreset" Grid.Column="1" Content="Use preset"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Output resolution"/><ComboBox Name="Resolution" AutomationProperties.Name="Output resolution"/>
+                                <TextBlock Text="Graphics quality"/><ComboBox Name="Quality" AutomationProperties.Name="Graphics quality"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="3D render scale (%)"/><ComboBox Name="Scale" AutomationProperties.Name="3D render scale in percent"/>
+                                <TextBlock Text="Display mode"/><ComboBox Name="Display" AutomationProperties.Name="Display mode"/>
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Name="VSync" Content="Vertical sync"/>
+                        <Button Name="AdvancedOpen" Content="Advanced Settings"/>
+                        <TextBlock Text="Audio" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
+                        <CheckBox Name="AudioFix" Content="Apply stereo sound fix"/>
+                        <TextBlock Text="Controls" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
+                        <TextBlock Text="Crosshair"/>
+                        <ComboBox Name="ReticleStyle" AutomationProperties.Name="Crosshair style"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Size"/>
+                                <ComboBox Name="ReticleSize" AutomationProperties.Name="Crosshair size"/>
+                                <TextBlock Text="Color"/>
+                                <ComboBox Name="ReticleColor" AutomationProperties.Name="Crosshair color"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Height="82" Background="#202330" BorderBrush="#444858" BorderThickness="1" VerticalAlignment="Center">
+                                <Grid>
+                                    <Path Name="ReticlePreview" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" StrokeThickness="2"/>
+                                    <TextBlock Name="ReticlePreviewText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#D6C8CC"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                        <TextBlock Text="Input mode"/>
+                        <ComboBox Name="InputMode" AutomationProperties.Name="Input mode"/>
+                        <StackPanel Name="GunPanel" Visibility="Collapsed">
+                            <TextBlock Text="Player 1 device"/>
+                            <ComboBox Name="Gun1" AutomationProperties.Name="Player 1 device"/>
+                            <TextBlock Text="Player 2 device"/>
+                            <ComboBox Name="Gun2" AutomationProperties.Name="Player 2 device"/>
+                        </StackPanel>
+                        <StackPanel Name="LightgunPanel" Visibility="Collapsed">
+                            <TextBlock Name="ModeGuide" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <TextBlock Text="Sinden border"/>
+                            <ComboBox Name="BorderWidth" AutomationProperties.Name="Sinden border thickness"/>
+                            <CheckBox Name="OffscreenReload" Content="Off-screen reload"/>
+                        </StackPanel>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Button Name="Save" Content="Save" Margin="0,0,10,0"/>
+                            <Button Name="Cancel" Grid.Column="1" Content="Back" Margin="0"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+                <ScrollViewer Name="AdvancedPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock Text="Advanced Settings" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Preset values follow Graphics quality. Changes apply on the next launch." TextWrapping="Wrap" Foreground="#DBCCD0" Margin="0,0,0,13"/>
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Frame rate limit"/>
+                                <ComboBox Name="AdvFrameCap" AutomationProperties.Name="Frame rate limit"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Anti-aliasing"/>
+                                <ComboBox Name="AdvAntiAliasing" AutomationProperties.Name="Anti-aliasing"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Dynamic shadows"/>
+                                <ComboBox Name="AdvShadows" AutomationProperties.Name="Dynamic shadows"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Volumetric fog"/>
+                                <ComboBox Name="AdvVolumetricFog" AutomationProperties.Name="Volumetric fog"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Texture detail"/>
+                                <ComboBox Name="AdvTextureDetail" AutomationProperties.Name="Texture detail"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Texture pool"/>
+                                <ComboBox Name="AdvTexturePool" AutomationProperties.Name="Texture pool"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Effects quality"/>
+                                <ComboBox Name="AdvEffects" AutomationProperties.Name="Effects quality"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Screen-space reflections"/>
+                                <ComboBox Name="AdvReflections" AutomationProperties.Name="Screen-space reflections"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Ambient occlusion"/>
+                                <ComboBox Name="AdvOcclusion" AutomationProperties.Name="Ambient occlusion"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Bloom"/>
+                                <ComboBox Name="AdvBloom" AutomationProperties.Name="Bloom"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Depth of field"/>
+                                <ComboBox Name="AdvDepthOfField" AutomationProperties.Name="Depth of field"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Motion blur"/>
+                                <ComboBox Name="AdvMotionBlur" AutomationProperties.Name="Motion blur"/>
+                            </StackPanel>
+                        </UniformGrid>
+                        <Button Name="AdvancedReset" Content="Reset to preset values"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Button Name="AdvancedSave" Content="Save" Margin="0,0,10,0"/>
+                            <Button Name="AdvancedBack" Grid.Column="1" Content="Back" Margin="0"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+                <StackPanel Name="InputPage" Visibility="Collapsed" VerticalAlignment="Center">
+                    <TextBlock Text="Input Test" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                    <TextBlock Text="Point at the test area and pull the trigger or click. In the game, press 1 or Enter to start and use the left button to shoot." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Border BorderBrush="#72505B" BorderThickness="1">
+                        <Canvas Name="Target" Height="210" Background="#202330" ClipToBounds="True">
+                            <Ellipse Name="Dot" Width="12" Height="12" Fill="#EE796F" IsHitTestVisible="False" Visibility="Collapsed"/>
+                        </Canvas>
+                    </Border>
+                    <TextBlock Name="InputStatus" Height="36" Padding="0,8,0,0" Foreground="#E6BEC2"/>
+                    <Button Name="InputBack" Content="Back"/>
+                </StackPanel>
+                <TextBlock Name="Status" Grid.Row="1" TextWrapping="Wrap" Foreground="#E6BEC2" Margin="0,12,0,0"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

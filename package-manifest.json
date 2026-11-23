@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "version": "v1.0.0",
+  "files": [
+    {
+      "path": "Launcher.cs",
+      "sha256": "2af9564482689a525b1cfd6d693b0aef88dd6267fa4481286f80ec8eba7f5982"
+    },
+    {
+      "path": "Play Scarlet Dawn.exe",
+      "sha256": "9dc898c1dbe5cf740522ed4cf3fd76b3b14e9a35723667767909440b51f777a8"
+    },
+    {
+      "path": "README.md",
+      "sha256": "93450d0e276338e1905001ebcb71c068599749a477392c575a3fb21020529765"
+    },
+    {
+      "path": "RELEASE-NOTES.md",
+      "sha256": "cdc1cfcf8919b4fe1b8e8d9969be85a3e9061710740a7f4040a32f2e2f0d37e3"
+    },
+    {
+      "path": "ScarletLightgun.dll",
+      "sha256": "e6fa20950c31d2495909aa6c7edb2bb0390521209c1cfe740dbec95354ebee0d"
+    },
+    {
+      "path": "build-scarlet-lightgun-patch.py",
+      "sha256": "db2d7cc162a9b4b9af1ee352a5f5802ec4c01987a8cb976d3d863513aca81fd9"
+    },
+    {
+      "path": "scarlet-aim-patch.json",
+      "sha256": "f915bd5c4fd9f917dfe33ad3298a82132b2a579561e7b75bbca365e124692987"
+    },
+    {
+      "path": "scarlet-aim.S",
+      "sha256": "31e52dfea6289ce1d78f08ede0dbc34c3596e64aa6a884081f7d7714e6a05095"
+    },
+    {
+      "path": "scarlet-lightgun-patch.json",
+      "sha256": "506a0a8391d7b659955368f145d992be21bf6ca184744fd2471a87401cbc6ffa"
+    },
+    {
+      "path": "scarlet-lightgun.c",
+      "sha256": "6c6f7d7a2a34fb48bd54d5ad99f31b47ee579450d9aefaeae5e5f2ea5565ca49"
+    },
+    {
+      "path": "scarlet-menu.ps1",
+      "sha256": "78622a018e45f4fc105664a54d98f7db4f0e2901ec03defb5b60e200671ead50"
+    },
+    {
+      "path": "scarlet-menu.xaml",
+      "sha256": "c16e613120b9fe09afec58438fc82627244c1650ce992788d9d7252a86bca5a1"
+    },
+    {
+      "path": "scarlet-reticle.h",
+      "sha256": "67f40b6ad5fa297f2284dba78d4694955d682f1a0402e0eef77af2de8a56257b"
+    },
+    {
+      "path": "scarlet-settings.ps1",
+      "sha256": "43780d0a53b584777163866d7e3adc0f47bd257df599e60daf8da0679e482597"
+    },
+    {
+      "path": "scarlet-update.ps1",
+      "sha256": "e649469a86fe4e48980e5f2f39886c2629408d8be4fef76d8eeee72bffe43cf8"
+    },
+    {
+      "path": "scarlet-version.txt",
+      "sha256": "b1a5a445b5aa7e6e98e0f7318c82256f0e0c4f62270904b918e8c72066bd4890"
+    }
+  ]
+}
