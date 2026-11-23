@@ -10,6 +10,7 @@
 
 /* Offsets are for the SHA-256 checked Scarlet Dawn export build only. */
 typedef void (*GameCall)(void *);
+typedef void *(*MakeName)(uint64_t *, const char *, int);
 enum GunEvent { SCREEN_IN, SCREEN_OUT, FIRE_DOWN, FIRE_UP, SELECT_DOWN, SELECT_UP, START_DOWN, START_UP };
 static const uint32_t methods[2][8] = {
     {0x1de110,0x1de130,0x1de250,0x1de2b0,0x1de150,0x1de1b0,0x1de2d0,0x1de330},
@@ -28,7 +29,7 @@ static struct Event {
     enum GunEvent kind;
 } events[64];
 static unsigned eventCount;
-static bool clearButtons, initialized, gunMode, rawMode, reloadEnabled;
+static bool clearButtons, initialized, gunMode, rawMode, reloadEnabled, switchWeaponOnReload;
 static unsigned borderWidth;
 static HWND gameWindow, borderWindow;
 static RECT borderBounds;
@@ -320,6 +321,9 @@ static void readEnvironment(void)
     configureReticle();
     GetEnvironmentVariableW(L"SCARLET_GUN_RELOAD",value,ARRAYSIZE(value));
     reloadEnabled = wcscmp(value,L"0") != 0;
+    switchWeaponOnReload = gunMode && !rawMode &&
+        GetEnvironmentVariableW(L"SCARLET_SINDEN_SWITCH_WEAPON_ON_RELOAD",value,ARRAYSIZE(value))==1 &&
+        value[0]==L'1';
     if (GetEnvironmentVariableW(L"SCARLET_GUN_BORDER",value,ARRAYSIZE(value))) borderWidth = wcstoul(value,NULL,10);
     if (borderWidth>100) borderWidth=0;
     for (unsigned p=0; p<2; ++p) {
@@ -348,7 +352,6 @@ static bool secondPlayerActive(void *controller)
 
     /* Query the same Blueprint predicate that controls the equipment menus. */
     static uint64_t name;
-    typedef void *(*MakeName)(uint64_t *, const char *, int);
     if (!name) ((MakeName)(imageBase+0x300890))(&name,"IsPlayerActive",0);
     if (!name) return false;
     typedef void *(*FindFunction)(void *, uint64_t);
@@ -361,9 +364,52 @@ static bool secondPlayerActive(void *controller)
     return params.active!=0;
 }
 
+static bool hasExtraWeaponAmmo(const void *controller)
+{
+    const uint8_t *actor = controller;
+    const uint8_t *actorClass = *(const uint8_t *const *)(actor+0x10);
+    static uint64_t shootingController;
+    if (!shootingController)
+        ((MakeName)(imageBase+0x300890))(&shootingController,"MouseShoot_C",0);
+    if (!shootingController || !actorClass || *(const uint64_t *)(actorClass+0x18)!=shootingController)
+        return false;
+
+    /* MouseShoot_C::GunTrigger1P and its equipment and remaining rounds per slot. */
+    const uint8_t *trigger = *(const uint8_t *const *)(actor+0xe10);
+    if (!trigger) return false;
+    struct IntArray {
+        const int32_t *items;
+        int32_t count, capacity;
+    };
+    const struct IntArray *equipment = (const struct IntArray *)(trigger+0x148);
+    const struct IntArray *remaining = (const struct IntArray *)(trigger+0x160);
+    const int32_t normalSlots = *(const int32_t *)(trigger+0x19c);
+    if (!equipment->items || !remaining->items || normalSlots<2 || normalSlots>3 ||
+        normalSlots>equipment->count || normalSlots>remaining->count)
+        return false;
+
+    /* Slot zero is the standard Machine Gun. Slots one and two are the selected extras. */
+    for (int32_t slot=1; slot<normalSlots; ++slot)
+        if (equipment->items[slot]>0 && remaining->items[slot]>0) return true;
+    return false;
+}
+
 static void callGame(void *controller, unsigned player, enum GunEvent kind)
 {
     if (player && kind < START_DOWN && !secondPlayerIsActive) return;
+    if (!player && kind==SCREEN_OUT && switchWeaponOnReload && hasExtraWeaponAmmo(controller)) {
+        /* Keep P1 off-screen state without broadcasting the separate reload event. */
+        uint8_t *state = controller;
+        state[0xb65] = 0;
+        state[0xb67] = 1;
+        /* Use the game's weapon selector while an extra weapon can still fire. */
+        const unsigned selectBit = 1u << ((SELECT_DOWN-FIRE_DOWN)/2);
+        if (!(deliveredButtons[0] & selectBit)) {
+            ((GameCall)(imageBase+methods[0][SELECT_DOWN]))(controller);
+            ((GameCall)(imageBase+methods[0][SELECT_UP]))(controller);
+        }
+        return;
+    }
     if (kind >= FIRE_DOWN) {
         unsigned bit = 1u << ((kind-FIRE_DOWN)/2);
         bool down = (kind-FIRE_DOWN)%2 == 0;

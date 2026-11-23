@@ -73,6 +73,7 @@ function Get-ScarletSHA256([string]$Path) {
 function Get-ScarletSettings([string]$Root) {
     $settings = @{ Resolution='1280x720'; Scale=75; Quality=0; Display='Windowed'; VSync=$false; StereoFix=[IO.File]::Exists((Join-Path $Root ('Local/Audio/'+$ScarletStereoName)))
         InputMode='Mouse'; Gun1='auto'; Gun2='disabled'; BorderWidth=50; OffscreenReload=$true
+        SindenSwitchWeaponOnReload=$false
         ReticleStyle='Original'; ReticleSize=2; ReticleColor='White' }
     $defaults=Get-ScarletAdvancedDefaults
     foreach ($key in $defaults.Keys) { $settings[$key]=$defaults[$key] }
@@ -104,6 +105,7 @@ function Assert-ScarletSettings($Settings) {
         $Settings.ReticleStyle -notin (Get-ScarletReticleStyles).Keys -or
         $Settings.ReticleColor -notin (Get-ScarletReticleColors).Keys -or $Settings.ReticleSize -notin 1,2,3 -or
         $Settings.BorderWidth -notin 0,25,50,75,100 -or $Settings.OffscreenReload -isnot [bool] -or
+        $Settings.SindenSwitchWeaponOnReload -isnot [bool] -or
         $Settings.Gun1 -isnot [string] -or $Settings.Gun2 -isnot [string] -or
         !$Settings.Gun1 -or !$Settings.Gun2 -or $Settings.Gun1.Length -gt 1023 -or $Settings.Gun2.Length -gt 1023 -or
         ($Settings.Gun1 -eq $Settings.Gun2 -and $Settings.Gun1 -notin 'auto','disabled')) {
@@ -359,6 +361,7 @@ function New-ScarletStartInfo([string]$Root, $Settings) {
         $info.EnvironmentVariables['SCARLET_GUN_P1'] = $Settings.Gun1
         $info.EnvironmentVariables['SCARLET_GUN_P2'] = $Settings.Gun2
         $info.EnvironmentVariables['SCARLET_GUN_RELOAD'] = [string][int]$Settings.OffscreenReload
+        $info.EnvironmentVariables['SCARLET_SINDEN_SWITCH_WEAPON_ON_RELOAD'] = [string][int]($Settings.InputMode -eq 'Sinden' -and $Settings.SindenSwitchWeaponOnReload)
         $info.EnvironmentVariables['SCARLET_GUN_BORDER'] = if ($Settings.InputMode -ne 'Mouse') { [string]$Settings.BorderWidth } else { '0' }
         $info.EnvironmentVariables['SCARLET_RETICLE_STYLE'] = $Settings.ReticleStyle
         $info.EnvironmentVariables['SCARLET_RETICLE_SIZE'] = [string]$Settings.ReticleSize

@@ -113,6 +113,9 @@
                             <TextBlock Text="Sinden border"/>
                             <ComboBox Name="BorderWidth" AutomationProperties.Name="Sinden border thickness"/>
                             <CheckBox Name="OffscreenReload" Content="Off-screen reload"/>
+                            <CheckBox Name="SindenSwitchWeaponOnReload" Visibility="Collapsed"
+                                      IsEnabled="{Binding IsChecked, ElementName=OffscreenReload}"
+                                      Content="Switch weapon on reload if an extra weapon has ammo"/>
                         </StackPanel>
                         <Grid Margin="0,8,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

@@ -166,6 +166,7 @@ $controls.InputMode.Add_SelectionChanged({
     $mode=$controls.InputMode.SelectedItem.Tag
     $controls.GunPanel.Visibility=if ($mode -eq 'RawInput') { 'Visible' } else { 'Collapsed' }
     $controls.LightgunPanel.Visibility=if ($mode -and $mode -ne 'Mouse') { 'Visible' } else { 'Collapsed' }
+    $controls.SindenSwitchWeaponOnReload.Visibility=if ($mode -eq 'Sinden') { 'Visible' } else { 'Collapsed' }
     $controls.ModeGuide.Text = if ($mode -eq 'RawInput') {
         'Auto assigns absolute guns in first-use order. For two players, select a second device and use 2 to join.'
     } elseif ($mode -eq 'Sinden') {
@@ -190,6 +191,7 @@ $loadSettings = {
     & $selectCombo $controls.InputMode $settings.InputMode
     & $selectCombo $controls.BorderWidth ([int]$settings.BorderWidth)
     $controls.OffscreenReload.IsChecked=$settings.OffscreenReload
+    $controls.SindenSwitchWeaponOnReload.IsChecked=$settings.SindenSwitchWeaponOnReload
     & $selectCombo $controls.ReticleSize $settings.ReticleSize
     & $selectCombo $controls.ReticleColor $settings.ReticleColor
     & $selectCombo $controls.ReticleStyle $settings.ReticleStyle
@@ -243,6 +245,7 @@ $controls.Save.Add_Click({
             InputMode=[string]$controls.InputMode.SelectedItem.Tag
             BorderWidth=[int]$controls.BorderWidth.SelectedItem.Tag
             OffscreenReload=[bool]$controls.OffscreenReload.IsChecked
+            SindenSwitchWeaponOnReload=[bool]$controls.SindenSwitchWeaponOnReload.IsChecked
             Gun1=[string]$controls.Gun1.SelectedItem.Tag
             Gun2=[string]$controls.Gun2.SelectedItem.Tag
             ReticleStyle=[string]$controls.ReticleStyle.SelectedItem.Tag

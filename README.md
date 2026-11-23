@@ -61,6 +61,8 @@ Vit **Sinden border** visas runt spelytan. Tjockleken kan ställas från 0,75 ti
 
 Med **Off-screen reload** aktiverat laddar spelet om när siktet rapporteras utanför spelytan. Läget tar också emot den högra musknapp som många ljuspistoler skickar när avtryckaren trycks utanför skärmen. Musens mittenknapp eller första sidoknapp växlar vapen i ljuspistollägena. Tryck **1 / Enter** för spelare 1 och **2** för en konfigurerad Raw Input-spelare 2. Den andra sidoknappen kan också starta respektive spelare.
 
+I Sinden-läget kan du även slå på **Switch weapon on reload if an extra weapon has ammo**. Omladdningsrörelsen och pistolens högerklick växlar då vapen när ett extravapen har ammunition. När extravapnen är tomma eller saknas laddas standardvapnet om.
+
 ## Testat i spelet
 
 Ett dolt speltest gick från attract-läget via spelarinträde och banval till första banan, med TeknoParrot och JVSCD avstängda. I Items följde markeringen pekaren mellan Machine Gun EX och Energy Cannon vid 1280 × 720. Klick valde båda rutorna. Machine Gun EX markerades och valdes även vid 1920 × 1080. Avfyrning verifierades på första banan efter menyfixen. Performance-profilen började rendera i 960 × 540 med en texturpool på 512 MB. Spelet använder även vissa egna renderingsmål i 1920 × 1080 när banan laddas.

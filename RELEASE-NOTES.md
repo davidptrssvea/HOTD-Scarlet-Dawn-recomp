@@ -1,4 +1,9 @@
-# Scarlet Dawn PC v1.0.1
+# Scarlet Dawn PC v1.0.2
+
+- Added an optional Sinden reload behavior. Off-screen reload cycles weapons while a spare weapon has ammo and reloads the standard Machine Gun when no spare weapon can be used.
+- Existing installations keep their current reload behavior until the option is enabled in Settings.
+
+## v1.0.1
 
 This release fixes package verification when Windows PowerShell cannot load its file hashing command. If the v1.0.0 updater reports that Get-FileHash is unavailable, extract the new ZIP and run setup.ps1 with the existing installation folder as -InstallDir. Setup keeps the existing settings and game data.
 
