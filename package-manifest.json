@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "version": "v1.0.6",
+  "version": "v1.0.7",
   "files": [
     {
       "path": "Launcher.cs",
@@ -16,7 +16,7 @@
     },
     {
       "path": "RELEASE-NOTES.md",
-      "sha256": "2d0e9042b64b425197c1255fdbc0874f157179a2b23c6b435884df6b1be5837f"
+      "sha256": "18a45ee19ac9a4821fe69f7fb2034910eb5b24e17baf75c839e9b7992de0c069"
     },
     {
       "path": "ScarletLightgun.dll",
@@ -44,11 +44,11 @@
     },
     {
       "path": "scarlet-menu.ps1",
-      "sha256": "006a5ec58101ed924f59f0c5f40cca003f2c7b5ad92a08669b6793bb1e43762e"
+      "sha256": "ae8a826d32fce7307ea0682067bb485daaa9f6587436f1349b18c29778ec0f88"
     },
     {
       "path": "scarlet-menu.xaml",
-      "sha256": "7f2a9bea5888337e6a82bc850d84ac7040fdd2868f1f4c0a8ff9abb751e03e3b"
+      "sha256": "1726840be9123ede042171407bc0d1650688e3744f5e4b976f1790557c5b74ae"
     },
     {
       "path": "scarlet-reticle.h",
@@ -56,7 +56,7 @@
     },
     {
       "path": "scarlet-settings.ps1",
-      "sha256": "896821fc7d4c795528941d7d58f3ab9fb971b6427fdb2bbf0cc8d8aabb6031e7"
+      "sha256": "c8b083630107e6fe04848f0c51e6ae175ce77ddadc055bf6f668262225313725"
     },
     {
       "path": "scarlet-update.ps1",
@@ -64,7 +64,7 @@
     },
     {
       "path": "scarlet-version.txt",
-      "sha256": "1d876c066e18158d7236c15c0406cf8ce6aa99e028706538f6b13abbc725f24e"
+      "sha256": "7b238c0559c0065faad3c976dad86fad8fc39d482e3d937b6324627cbee4f78e"
     }
   ]
 }

@@ -82,6 +82,7 @@
                         <Button Name="AdvancedOpen" Content="Advanced Settings"/>
                         <TextBlock Text="Audio" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
                         <CheckBox Name="AudioFix" Content="Apply stereo sound fix"/>
+                        <CheckBox Name="MuteCreditSounds" Content="Mute Start and coin sounds" ToolTip="Applies when the game starts."/>
                         <TextBlock Text="Controls" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
                         <TextBlock Text="Crosshair"/>
                         <ComboBox Name="ReticleStyle" AutomationProperties.Name="Crosshair style"/>

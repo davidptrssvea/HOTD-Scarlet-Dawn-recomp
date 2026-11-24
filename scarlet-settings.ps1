@@ -73,7 +73,7 @@ function Get-ScarletSHA256([string]$Path) {
 function Get-ScarletSettings([string]$Root) {
     $settings = @{ Resolution='1280x720'; Scale=75; Quality=0; Display='Windowed'; VSync=$false; StereoFix=[IO.File]::Exists((Join-Path $Root ('Local/Audio/'+$ScarletStereoName)))
         InputMode='Mouse'; Gun1='auto'; Gun2='disabled'; BorderWidth=50; OffscreenReload=$true
-        SindenSwitchWeaponOnReload=$false
+        SindenSwitchWeaponOnReload=$false; MuteCreditSounds=$false
         ReticleStyle='Original'; ReticleSize=2; ReticleColor='White' }
     $defaults=Get-ScarletAdvancedDefaults
     foreach ($key in $defaults.Keys) { $settings[$key]=$defaults[$key] }
@@ -105,7 +105,7 @@ function Assert-ScarletSettings($Settings) {
         $Settings.ReticleStyle -notin (Get-ScarletReticleStyles).Keys -or
         $Settings.ReticleColor -notin (Get-ScarletReticleColors).Keys -or $Settings.ReticleSize -notin 1,2,3 -or
         $Settings.BorderWidth -notin 0,25,50,75,100 -or $Settings.OffscreenReload -isnot [bool] -or
-        $Settings.SindenSwitchWeaponOnReload -isnot [bool] -or
+        $Settings.SindenSwitchWeaponOnReload -isnot [bool] -or $Settings.MuteCreditSounds -isnot [bool] -or
         $Settings.Gun1 -isnot [string] -or $Settings.Gun2 -isnot [string] -or
         !$Settings.Gun1 -or !$Settings.Gun2 -or $Settings.Gun1.Length -gt 1023 -or $Settings.Gun2.Length -gt 1023 -or
         ($Settings.Gun1 -eq $Settings.Gun2 -and $Settings.Gun1 -notin 'auto','disabled')) {
@@ -234,6 +234,106 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
     }
 }
 
+
+function Read-ScarletCreditExport($Reader, [long[]]$Chunks, [int]$Length, [string]$ExpectedHash,
+                                 [int]$CueOffset, [int]$PreviousImport) {
+    $export = [byte[]]::new($Length)
+    $at = 0
+    for ($i = 0; $i -lt $Chunks.Count; $i += 2) {
+        $Reader.BaseStream.Position = $Chunks[$i]
+        $compressed = $Reader.ReadBytes([int]$Chunks[$i+1])
+        if ($compressed.Length -ne $Chunks[$i+1]) { throw 'The original arcade sound package is incomplete.' }
+        # Unreal Pak v4 uses zlib blocks. DeflateStream consumes the payload between its header and trailer.
+        $inputStream = [IO.MemoryStream]::new($compressed, 2, $compressed.Length - 6, $false)
+        $inflate = [IO.Compression.DeflateStream]::new($inputStream, [IO.Compression.CompressionMode]::Decompress)
+        try {
+            while ($at -lt $export.Length) {
+                $read = $inflate.Read($export, $at, $export.Length - $at)
+                if (!$read) { break }
+                $at += $read
+            }
+            if ($inflate.ReadByte() -ge 0) { throw 'Unexpected size for the arcade sound export.' }
+        } finally { $inflate.Dispose(); $inputStream.Dispose() }
+    }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $actual = [BitConverter]::ToString($sha.ComputeHash($export)).Replace('-','') }
+    finally { $sha.Dispose() }
+    if ($at -ne $Length -or $actual -ne $ExpectedHash -or $export[$CueOffset-1] -ne 0x20 -or
+        [BitConverter]::ToInt32($export, $CueOffset) -ne $PreviousImport) {
+        throw 'The game package has an unsupported Start or coin sound export.'
+    }
+    # Clear the cue argument in this Blueprint only. The same cue can still be used in other menus.
+    [Array]::Clear($export, $CueOffset, 4)
+    return ,$export
+}
+
+function Write-ScarletPakString($Writer, [string]$Value) {
+    $bytes = [Text.Encoding]::UTF8.GetBytes($Value + [char]0)
+    $Writer.Write([int]$bytes.Length)
+    $Writer.Write($bytes)
+}
+
+function Write-ScarletPakEntry($Writer, [long]$Offset, [byte[]]$Data, [byte[]]$Hash) {
+    $Writer.Write($Offset)
+    $Writer.Write([long]$Data.Length)
+    $Writer.Write([long]$Data.Length)
+    $Writer.Write([int]0)
+    $Writer.Write($Hash)
+    $Writer.Write([byte]0)
+    $Writer.Write([int]0)
+}
+
+function New-ScarletCreditSoundPak([string]$GamePak) {
+    if ((Get-Item -LiteralPath $GamePak).Length -ne 7847593660) {
+        throw 'The Start and coin sound option requires the supported Scarlet Dawn Export PAK.'
+    }
+    $source = [IO.BinaryReader]::new([IO.File]::OpenRead($GamePak))
+    $pak = [IO.BinaryWriter]::new([IO.MemoryStream]::new())
+    $index = [IO.BinaryWriter]::new([IO.MemoryStream]::new())
+    $sha = [Security.Cryptography.SHA1]::Create()
+    try {
+        $exports = [ordered]@{
+            'Hodzero/Content/HodZero/Blueprints/GameMode/BPC_StartButton.uexp' =
+                (Read-ScarletCreditExport $source @(65368137,1260) 4933 'AB9C07448970FF62CC18A92AA2491263D88D666FAB614AD6B0D001D526D75133' 2619 -70)
+            'Hodzero/Content/HodZero_v1/Blueprints/GameInstance/BP_HodGameInstance.uexp' =
+                (Read-ScarletCreditExport $source @(477866073,15885,477881958,5460) 107765 '27E9F4E2700907D3414E727B337C812894C47F5FE278910FE66A467D1FB89A4D' 18824 -429)
+        }
+        Write-ScarletPakString $index '../../../'
+        $index.Write([int]$exports.Count)
+        foreach ($name in $exports.Keys) {
+            $data = $exports[$name]
+            $digest = $sha.ComputeHash($data)
+            Write-ScarletPakString $index $name
+            Write-ScarletPakEntry $index $pak.BaseStream.Position $data $digest
+            Write-ScarletPakEntry $pak 0 $data $digest
+            $pak.Write($data)
+        }
+        $indexOffset = $pak.BaseStream.Position
+        $indexData = $index.BaseStream.ToArray()
+        $pak.Write($indexData)
+        $pak.Write([byte]0)
+        $pak.Write([uint32]0x5a6f12e1)
+        $pak.Write([int]4)
+        $pak.Write([long]$indexOffset)
+        $pak.Write([long]$indexData.Length)
+        $pak.Write($sha.ComputeHash($indexData))
+        return ,$pak.BaseStream.ToArray()
+    } finally { $source.Dispose(); $pak.Dispose(); $index.Dispose(); $sha.Dispose() }
+}
+
+function Sync-ScarletCreditSounds([string]$GamePak, [bool]$Mute) {
+    $target = Join-Path ([IO.Path]::GetDirectoryName($GamePak)) 'Hodzero-CodexCreditSounds_P.pak'
+    if ([IO.File]::Exists($target)) {
+        if (([IO.File]::GetAttributes($target) -band [IO.FileAttributes]::ReparsePoint) -or
+            (Get-ScarletSHA256 $target) -ne '9002CEFB02CFA1D61771CA275C5F43FF25095622513714F98BF87EECA221E33C') {
+            throw 'Move the existing Hodzero-CodexCreditSounds_P.pak out of the Paks folder before changing this option.'
+        }
+        if (!$Mute) { [IO.File]::Delete($target) }
+    } elseif ($Mute) {
+        Set-ScarletBytes $target (New-ScarletCreditSoundPak $GamePak)
+    }
+}
+
 function Get-ScarletPatchedExecutable([string]$Root, [string]$Original, [string]$Variant) {
     $manifestPath = Join-Path $Root "scarlet-$($Variant.ToLowerInvariant())-patch.json"
     $patch = [IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json
@@ -330,6 +430,7 @@ function New-ScarletStartInfo([string]$Root, $Settings) {
         'r.FullScreenMode'=if ($Settings.Display -eq 'Borderless' -and ($Settings.InputMode -ne 'Mouse' -or $Settings.ReticleStyle -ne 'Original')) { 1 } else { $null }
     }
     Sync-ScarletStereo $Root $Settings.StereoFix
+    Sync-ScarletCreditSounds $mainPak $Settings.MuteCreditSounds
     Set-ScarletIni (Join-Path $config 'Engine.ini') ([ordered]@{
         'SystemSettings'=$system
         'ConsoleVariables'=[ordered]@{ 't.MaxFPS'=$Settings.FrameCap; 'r.VSync'=[int]$Settings.VSync }

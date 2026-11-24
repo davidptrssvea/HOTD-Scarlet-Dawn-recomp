@@ -190,6 +190,7 @@ $loadSettings = {
     $controls.Display.SelectedItem=$settings.Display
     $controls.VSync.IsChecked=$settings.VSync
     $controls.AudioFix.IsChecked=$settings.StereoFix
+    $controls.MuteCreditSounds.IsChecked=$settings.MuteCreditSounds
     & $selectCombo $controls.InputMode $settings.InputMode
     & $selectCombo $controls.BorderWidth ([int]$settings.BorderWidth)
     $controls.OffscreenReload.IsChecked=$settings.OffscreenReload
@@ -244,6 +245,7 @@ $controls.Save.Add_Click({
             Display=[string]$controls.Display.SelectedItem
             VSync=[bool]$controls.VSync.IsChecked
             StereoFix=[bool]$controls.AudioFix.IsChecked
+            MuteCreditSounds=[bool]$controls.MuteCreditSounds.IsChecked
             InputMode=[string]$controls.InputMode.SelectedItem.Tag
             BorderWidth=[int]$controls.BorderWidth.SelectedItem.Tag
             OffscreenReload=[bool]$controls.OffscreenReload.IsChecked
