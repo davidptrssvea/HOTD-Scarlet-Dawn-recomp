@@ -7,6 +7,18 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'scarlet-settings.ps1')
 $root = $PSScriptRoot
 
+# The builder ships the same launcher as the installed copy.
+if ([IO.File]::Exists((Join-Path $root 'Setup.cmd')) -and
+    [IO.File]::Exists((Join-Path $root 'package-manifest.json')) -and
+    !(Test-HotdLibraryData $root Scarlet)) {
+    $installedRoot = Join-Path $root 'ScarletDawn-PC'
+    $installedMenu = Join-Path $installedRoot 'scarlet-menu.ps1'
+    if ([IO.File]::Exists($installedMenu) -and (Test-HotdLibraryData $installedRoot Scarlet)) {
+        & $installedMenu @PSBoundParameters
+        return
+    }
+}
+
 if ($ValidateOnly -or $PrepareOnly) {
     $current = Get-ScarletSettings $root
     if ($PrepareOnly) {

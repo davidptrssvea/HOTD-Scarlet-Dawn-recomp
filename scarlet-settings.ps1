@@ -385,7 +385,10 @@ function New-ScarletStartInfo([string]$Root, $Settings) {
     $game = Join-Path $Root 'Game'
     $exe = Join-Path $game 'Hodzero/Binaries/Win64/Hodzero-Win64-Shipping.exe'
     $mainPak = Join-Path $game 'Hodzero/Content/Paks/Hodzero-WindowsNoEditor.pak'
-    if (![IO.File]::Exists($exe) -or ![IO.File]::Exists($mainPak)) { throw 'The local Scarlet Dawn game copy is incomplete.' }
+    $missing = @($exe, $mainPak | Where-Object { ![IO.File]::Exists($_) })
+    if ($missing.Count) {
+        throw "The local Scarlet Dawn game copy is incomplete. Missing:$([Environment]::NewLine)$($missing -join [Environment]::NewLine)"
+    }
     $profile = Join-Path $Root 'Local/Profile'
     $config = Join-Path $profile 'Saved/Config/WindowsNoEditor'
     $width,$height = $Settings.Resolution.Split('x')

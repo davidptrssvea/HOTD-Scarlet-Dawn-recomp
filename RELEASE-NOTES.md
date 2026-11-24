@@ -1,6 +1,6 @@
-# Scarlet Dawn PC v1.0.7 - Optional arcade sound mute
+# Scarlet Dawn PC v1.0.8 - Fix launching after setup
 
-- Enable **Mute Start and coin sounds** in **Settings** to silence the Start and coin cues. The stereo sound fix remains a separate option.
-- Free Play stays enabled by default.
+- The launcher next to **Setup.cmd** now opens the completed default installation in **ScarletDawn-PC** automatically.
+- If either required game file is missing, the launcher reports its exact path.
 
-Save your settings and start or restart the game to apply. Update through **Updates > Download and install** or run **Setup.cmd** from the new builder ZIP.
+Use **Updates > Download and install** to update an existing installation and keep your settings. For a fresh installation, extract the builder ZIP, run **Setup.cmd**, and open **ScarletDawn-PC\Play Scarlet Dawn.exe**.
