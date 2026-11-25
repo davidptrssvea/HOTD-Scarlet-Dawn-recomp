@@ -1,11 +1,14 @@
 ﻿[CmdletBinding()]
 param([switch]$ValidateOnly, [switch]$PrepareOnly,
-      [ValidateSet('Menu','Settings','Play')][string]$StartMode='Menu')
+      [ValidateSet('Menu','Settings','Play','PauseSettings')][string]$StartMode='Menu',
+      [int]$PauseSession)
 # HOTD Game Library
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'scarlet-settings.ps1')
 $root = $PSScriptRoot
+$fromPause = $StartMode -eq 'PauseSettings'
+if ($fromPause -and $PauseSession -le 0) { throw 'A valid pause session is required.' }
 
 # The builder ships the same launcher as the installed copy.
 if ([IO.File]::Exists((Join-Path $root 'Setup.cmd')) -and
@@ -112,8 +115,10 @@ $selectCombo = {
         if ($item.Tag -eq $Code) { $Control.SelectedItem=$item; return }
     }
 }
-$inputModes = [ordered]@{ Mouse='Mouse'; Sinden='Sinden (Windows mouse)'; RawInput='Lightgun (Raw Input)' }
+$inputModes = [ordered]@{ Mouse='Mouse'; Gamepad='Gamepad (XInput)'; Sinden='Sinden (Windows mouse)'; RawInput='Lightgun (Raw Input)' }
 & $fillCombo $controls.InputMode @($inputModes.Keys | ForEach-Object { @{Code=$_;Label=$inputModes[$_]} })
+& $fillCombo $controls.GamepadSensitivity @(50,75,100,125,150,175 | ForEach-Object { @{Code=$_;Label=('{0}%' -f $_)} })
+if ($fromPause) { $controls.PauseHint.Visibility='Visible' }
 & $fillCombo $controls.BorderWidth @(
     @{Code=0;Label='Off'}
     @{Code=25;Label='Extra Thin (0.75%)'}
@@ -179,13 +184,17 @@ $loadGunDevices = {
 $controls.InputMode.Add_SelectionChanged({
     $mode=$controls.InputMode.SelectedItem.Tag
     $controls.GunPanel.Visibility=if ($mode -eq 'RawInput') { 'Visible' } else { 'Collapsed' }
-    $controls.LightgunPanel.Visibility=if ($mode -and $mode -ne 'Mouse') { 'Visible' } else { 'Collapsed' }
+    $controls.LightgunPanel.Visibility=if ($mode -in 'Sinden','RawInput') { 'Visible' } else { 'Collapsed' }
+    $controls.GamepadPanel.Visibility=if ($mode -eq 'Gamepad') { 'Visible' } else { 'Collapsed' }
     $controls.SindenSwitchWeaponOnReload.Visibility=if ($mode -eq 'Sinden') { 'Visible' } else { 'Collapsed' }
     $controls.ModeGuide.Text = if ($mode -eq 'RawInput') {
         'Auto assigns absolute guns in first-use order. For two players, select a second device and use 2 to join.'
     } elseif ($mode -eq 'Sinden') {
         'Start the Sinden software and calibrate with the border visible. Use 1 or Enter to join.'
+    } elseif ($mode -eq 'Gamepad') {
+        'Either stick aims. RT or A shoots and selects items. X or LB reloads. Y or RB switches weapons. Menu joins. View or Esc pauses.'
     } else { '' }
+    $controls.ModeGuide.Visibility = if ($controls.ModeGuide.Text) { 'Visible' } else { 'Collapsed' }
 })
 
 $showPage = {
@@ -204,6 +213,7 @@ $loadSettings = {
     $controls.AudioFix.IsChecked=$settings.StereoFix
     $controls.MuteCreditSounds.IsChecked=$settings.MuteCreditSounds
     & $selectCombo $controls.InputMode $settings.InputMode
+    & $selectCombo $controls.GamepadSensitivity $settings.GamepadSensitivity
     & $selectCombo $controls.BorderWidth ([int]$settings.BorderWidth)
     $controls.OffscreenReload.IsChecked=$settings.OffscreenReload
     $controls.SindenSwitchWeaponOnReload.IsChecked=$settings.SindenSwitchWeaponOnReload
@@ -237,7 +247,10 @@ $controls.AdvancedSave.Add_Click({
         [void]$controls.AdvancedOpen.Focus()
     } catch { $controls.Status.Text=$_.Exception.Message }
 })
-$controls.Cancel.Add_Click({ & $showPage 'Main'; [void]$controls.Options.Focus() })
+$controls.Cancel.Add_Click({
+    if ($fromPause) { $window.Close(); return }
+    & $showPage 'Main'; [void]$controls.Options.Focus()
+})
 $controls.InputTest.Add_Click({ & $showPage 'Input' })
 $controls.InputBack.Add_Click({ & $showPage 'Main'; [void]$controls.InputTest.Focus() })
 $controls.Quit.Add_Click({ $window.Close() })
@@ -259,6 +272,7 @@ $controls.Save.Add_Click({
             StereoFix=[bool]$controls.AudioFix.IsChecked
             MuteCreditSounds=[bool]$controls.MuteCreditSounds.IsChecked
             InputMode=[string]$controls.InputMode.SelectedItem.Tag
+            GamepadSensitivity=[int]$controls.GamepadSensitivity.SelectedItem.Tag
             BorderWidth=[int]$controls.BorderWidth.SelectedItem.Tag
             OffscreenReload=[bool]$controls.OffscreenReload.IsChecked
             SindenSwitchWeaponOnReload=[bool]$controls.SindenSwitchWeaponOnReload.IsChecked
@@ -271,6 +285,14 @@ $controls.Save.Add_Click({
         $next=$settings.Clone()
         foreach ($key in $changes.Keys) { $next[$key]=$changes[$key] }
         Save-ScarletSettings $root $next
+        if ($fromPause) {
+            $style=[array]::IndexOf(@((Get-ScarletReticleStyles).Keys),$next.ReticleStyle)
+            $color=[array]::IndexOf(@((Get-ScarletReticleColors).Keys),$next.ReticleColor)
+            Set-ScarletFile (Join-Path $root "Local/.pause-controls-$PauseSession.ini") (@('[Controls]',"Style=$style",
+                "Color=$color","Size=$($next.ReticleSize)","Sensitivity=$($next.GamepadSensitivity)") -join "`r`n")
+            $window.Close()
+            return
+        }
         foreach ($key in $next.Keys) { $settings[$key]=$next[$key] }
         & $showPage 'Main'
         $controls.Status.Text = 'Settings saved'
@@ -304,6 +326,10 @@ $timer.Add_Tick({
     $window.WindowState='Normal'
     [void]$window.Activate()
     $controls.Status.Text = if ($code) { "Game exited with code $code. See Local/Logs." } else { 'Game closed' }
+    try {
+        $saved=Get-ScarletSettings $root
+        foreach ($key in $saved.Keys) { $settings[$key]=$saved[$key] }
+    } catch { $controls.Status.Text=$_.Exception.Message }
 })
 $controls.Play.Add_Click({
     if ($run.Child) { return }
@@ -333,14 +359,17 @@ $window.Add_PreviewKeyDown({
     }).Count) { return }
     if ($controls.MainPage.IsVisible) { $window.Close() }
     elseif ($controls.AdvancedPage.IsVisible) { & $showPage 'Settings'; [void]$controls.AdvancedOpen.Focus() }
+    elseif ($fromPause) { $window.Close() }
     else { & $showPage 'Main' }
     $eventArgs.Handled=$true
 })
 . (Join-Path $root 'scarlet-update.ps1')
-$controls.GameLibrary=Add-Hotd4GameSwitcher $window $controls.MainPage $root Scarlet $controls.Play $controls.Options
-Add-HotdUpdater $window $controls.MainPage $root
+if (!$fromPause) {
+    $controls.GameLibrary=Add-Hotd4GameSwitcher $window $controls.MainPage $root Scarlet $controls.Play $controls.Options
+    Add-HotdUpdater $window $controls.MainPage $root
+}
 $window.Add_ContentRendered({
-    if ($StartMode -eq 'Settings') { & $loadSettings; & $showPage 'Settings'; [void]$controls.Resolution.Focus() }
+    if ($StartMode -in 'Settings','PauseSettings') { & $loadSettings; & $showPage 'Settings'; [void]$controls.Resolution.Focus() }
     elseif ($run.StartFromLibrary) {
         $run.StartFromLibrary=$false
         $controls.Play.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))

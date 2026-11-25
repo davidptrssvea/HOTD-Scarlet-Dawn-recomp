@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <xinput.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,7 +31,7 @@ static struct Event {
     enum GunEvent kind;
 } events[64];
 static unsigned eventCount;
-static bool clearButtons, initialized, gunMode, rawMode, reloadEnabled, switchWeaponOnReload;
+static bool clearButtons, initialized, gunMode, rawMode, gamepadMode, reloadEnabled, switchWeaponOnReload;
 static unsigned borderWidth;
 static HWND gameWindow, borderWindow;
 static RECT borderBounds;
@@ -38,6 +40,46 @@ static uintptr_t imageBase;
 static void *previousController;
 static bool secondPlayerWasActive, secondPlayerIsActive;
 static unsigned deliveredButtons[2];
+static struct Gamepad {
+    DWORD index;
+    double x, y;
+    unsigned buttons;
+    bool synced;
+} gamepads[2] = {{.index=XUSER_MAX_COUNT}, {.index=XUSER_MAX_COUNT}};
+static LONGLONG gamepadTick, gamepadFrequency;
+static ULONGLONG nextGamepadScan;
+static unsigned cursorHideCalls, gamepadSensitivity = 100;
+static bool pauseRequested;
+static HWND pauseWindow;
+
+static void releaseGamepadCursor(void)
+{
+    while (cursorHideCalls) {
+        ShowCursor(TRUE);
+        --cursorHideCalls;
+    }
+}
+
+static void updateGamepadCursor(bool foreground)
+{
+    if (!gamepadMode) return;
+    POINT point;
+    RECT client;
+    if (!foreground || pauseWindow || IsIconic(gameWindow) ||
+        !GetCursorPos(&point) || !ScreenToClient(gameWindow,&point) ||
+        !GetClientRect(gameWindow,&client) || !PtInRect(&client,point)) {
+        releaseGamepadCursor();
+        return;
+    }
+    CURSORINFO cursor={.cbSize=sizeof cursor};
+    if (GetCursorInfo(&cursor) && (cursor.flags & CURSOR_SHOWING)) {
+        for (unsigned tries=0; tries<16; ++tries) {
+            ++cursorHideCalls;
+            if (ShowCursor(FALSE) < 0) break;
+        }
+    }
+    SetCursor(NULL);
+}
 
 static void emit(unsigned player, enum GunEvent kind)
 {
@@ -95,6 +137,92 @@ static void resetGun(struct Gun *gun)
 {
     gun->inside = gun->trigger = gun->selecting = gun->starting = gun->offscreenButton = false;
     gun->point = (POINT){-1,-1};
+}
+
+enum GamepadButton { PAD_FIRE=1, PAD_RELOAD=2, PAD_SELECT=4, PAD_START=8, PAD_PAUSE=16 };
+
+static void applyGamepad(unsigned player, const XINPUT_GAMEPAD *input, const RECT *client, double elapsed)
+{
+    struct Gamepad *pad = &gamepads[player];
+    double x = input->sThumbLX, y = input->sThumbLY;
+    const double rx = input->sThumbRX, ry = input->sThumbRY;
+    if (rx*rx + ry*ry > x*x + y*y) {
+        x = rx;
+        y = ry;
+    }
+    const double length = sqrt(x*x + y*y);
+    const double deadzone = XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE;
+    if (length > deadzone) {
+        const double strength = (fmin(length,32767.0) - deadzone) / (32767.0 - deadzone);
+        const double distance = 0.016 * gamepadSensitivity * client->bottom * elapsed * strength * strength;
+        pad->x += x / length * distance;
+        pad->y -= y / length * distance;
+    }
+    pad->x = fmax(0, fmin(pad->x, client->right - 1));
+    pad->y = fmax(0, fmin(pad->y, client->bottom - 1));
+    aim(player, (POINT){(LONG)(pad->x + 0.5), (LONG)(pad->y + 0.5)});
+
+    unsigned buttons = 0;
+    if ((input->wButtons & XINPUT_GAMEPAD_A) || input->bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+        buttons |= PAD_FIRE;
+    if (input->wButtons & (XINPUT_GAMEPAD_X | XINPUT_GAMEPAD_LEFT_SHOULDER)) buttons |= PAD_RELOAD;
+    if (input->wButtons & (XINPUT_GAMEPAD_Y | XINPUT_GAMEPAD_RIGHT_SHOULDER)) buttons |= PAD_SELECT;
+    if (input->wButtons & XINPUT_GAMEPAD_START) buttons |= PAD_START;
+    if (input->wButtons & XINPUT_GAMEPAD_BACK) buttons |= PAD_PAUSE;
+    const unsigned changed = pad->synced ? pad->buttons ^ buttons : 0;
+    pad->buttons = buttons;
+    pad->synced = true;
+
+    if (changed & buttons & PAD_PAUSE) pauseRequested = true;
+    if (changed & buttons & PAD_RELOAD) screen(player, false);
+    if (changed & PAD_FIRE) press(player, FIRE_DOWN, (buttons & PAD_FIRE) != 0);
+    if (changed & PAD_SELECT) press(player, SELECT_DOWN, (buttons & PAD_SELECT) != 0);
+    if (changed & PAD_START) press(player, START_DOWN, (buttons & PAD_START) != 0);
+}
+
+static void updateGamepads(bool controllerChanged)
+{
+    RECT client;
+    if (!GetClientRect(gameWindow,&client) || client.right <= 0 || client.bottom <= 0) return;
+    LARGE_INTEGER clock;
+    QueryPerformanceCounter(&clock);
+    const double elapsed = gamepadTick && gamepadFrequency ?
+        fmin((double)(clock.QuadPart - gamepadTick) / (double)gamepadFrequency, 0.05) : 0;
+    gamepadTick = clock.QuadPart;
+
+    unsigned assigned = 0;
+    for (unsigned p=0; p<2; ++p) {
+        struct Gamepad *pad = &gamepads[p];
+        if (pad->index == XUSER_MAX_COUNT) continue;
+        if (controllerChanged) {
+            pad->synced = false;
+            guns[p].trigger = guns[p].selecting = guns[p].starting = false;
+        }
+        XINPUT_STATE state;
+        if (XInputGetState(pad->index,&state) == ERROR_SUCCESS) {
+            assigned |= 1u << pad->index;
+            applyGamepad(p,&state.Gamepad,&client,elapsed);
+        } else {
+            press(p,FIRE_DOWN,false);
+            press(p,SELECT_DOWN,false);
+            press(p,START_DOWN,false);
+            resetGun(&guns[p]);
+            pad->index = XUSER_MAX_COUNT;
+        }
+    }
+
+    const ULONGLONG now = GetTickCount64();
+    if (now < nextGamepadScan) return;
+    nextGamepadScan = now + 1000;
+    for (DWORD index=0; index<XUSER_MAX_COUNT; ++index) {
+        const unsigned vacant = gamepads[0].index == XUSER_MAX_COUNT ? 0 : 1;
+        if (gamepads[vacant].index != XUSER_MAX_COUNT) break;
+        if (assigned & (1u << index)) continue;
+        XINPUT_STATE state;
+        if (XInputGetState(index,&state) != ERROR_SUCCESS) continue;
+        gamepads[vacant] = (struct Gamepad){.index=index, .x=client.right/2.0, .y=client.bottom/2.0};
+        applyGamepad(vacant,&state.Gamepad,&client,0);
+    }
 }
 
 static int rawPlayer(HANDLE device, bool absolute)
@@ -169,26 +297,43 @@ static LRESULT CALLBACK gameProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT
 {
     (void)data;
     if (msg == WM_NCDESTROY) {
+        if (pauseWindow) DestroyWindow(pauseWindow);
+        releaseGamepadCursor();
         RemoveWindowSubclass(hwnd, gameProc, id);
         gameWindow = NULL;
         borderWindow = NULL;
         clearReticles();
         for (unsigned p=0;p<2;++p) reticleSprites[p].window=NULL;
         eventCount = 0;
-        for (unsigned p = 0; p < 2; ++p) resetGun(&guns[p]);
+        for (unsigned p = 0; p < 2; ++p) {
+            resetGun(&guns[p]);
+            gamepads[p].synced = false;
+        }
     }
-    if (msg == WM_SETCURSOR && LOWORD(lp)==HTCLIENT && hideNativeCursor) {
+    if (msg == WM_SETCURSOR && LOWORD(lp)==HTCLIENT &&
+        (hideNativeCursor || (gamepadMode && !pauseWindow && GetForegroundWindow()==hwnd))) {
         SetCursor(NULL);
         return TRUE;
     }
     if (msg == WM_KILLFOCUS) {
+        releaseGamepadCursor();
         clearReticles();
         if (borderWindow) ShowWindow(borderWindow,SW_HIDE);
         clearButtons = true;
         eventCount = 0;
-        for (unsigned p = 0; p < 2; ++p) resetGun(&guns[p]);
+        for (unsigned p = 0; p < 2; ++p) {
+            resetGun(&guns[p]);
+            gamepads[p].synced = false;
+        }
+    }
+    if (wp == VK_ESCAPE && (msg == WM_KEYDOWN || msg == WM_KEYUP)) {
+        if (msg == WM_KEYDOWN && !(lp & (1L << 30)) && GetForegroundWindow()==hwnd)
+            pauseRequested = true;
+        return 0;
     }
     if (!gunMode) return DefSubclassProc(hwnd,msg,wp,lp);
+    if (gamepadMode && (msg == WM_MOUSEMOVE || msg == WM_MOUSEWHEEL || pointerMessage(msg)))
+        return pointerMessage(msg) && msg >= WM_XBUTTONDOWN ? TRUE : 0;
     if (rawMode && msg == WM_INPUT) {
         if (GetForegroundWindow() == hwnd) rawPacket((HRAWINPUT)lp);
         return DefWindowProcW(hwnd,msg,wp,lp);
@@ -317,15 +462,26 @@ static void readEnvironment(void)
     wchar_t value[16] = L"";
     GetEnvironmentVariableW(L"SCARLET_GUN_MODE",value,ARRAYSIZE(value));
     rawMode = !wcscmp(value,L"RawInput");
-    gunMode = rawMode || !wcscmp(value,L"Sinden");
+    gamepadMode = !wcscmp(value,L"Gamepad");
+    const bool sinden = !wcscmp(value,L"Sinden");
+    gunMode = rawMode || sinden || gamepadMode;
     configureReticle();
+    if (gamepadMode) {
+        LARGE_INTEGER frequency;
+        if (QueryPerformanceFrequency(&frequency)) gamepadFrequency = frequency.QuadPart;
+        if (reticleStyle == RETICLE_ORIGINAL) reticleStyle = RETICLE_RING_DOT;
+        if (GetEnvironmentVariableW(L"SCARLET_GAMEPAD_SENSITIVITY",value,ARRAYSIZE(value))) {
+            const unsigned parsed = wcstoul(value,NULL,10);
+            if (parsed >= 50 && parsed <= 175) gamepadSensitivity = parsed;
+        }
+    }
     GetEnvironmentVariableW(L"SCARLET_GUN_RELOAD",value,ARRAYSIZE(value));
-    reloadEnabled = wcscmp(value,L"0") != 0;
-    switchWeaponOnReload = gunMode && !rawMode &&
+    reloadEnabled = gamepadMode || wcscmp(value,L"0") != 0;
+    switchWeaponOnReload = sinden &&
         GetEnvironmentVariableW(L"SCARLET_SINDEN_SWITCH_WEAPON_ON_RELOAD",value,ARRAYSIZE(value))==1 &&
         value[0]==L'1';
     if (GetEnvironmentVariableW(L"SCARLET_GUN_BORDER",value,ARRAYSIZE(value))) borderWidth = wcstoul(value,NULL,10);
-    if (borderWidth>100) borderWidth=0;
+    if (gamepadMode || borderWidth>100) borderWidth=0;
     for (unsigned p=0; p<2; ++p) {
         if (!GetEnvironmentVariableW(p?L"SCARLET_GUN_P2":L"SCARLET_GUN_P1",guns[p].path,ARRAYSIZE(guns[p].path)))
             wcscpy(guns[p].path,p?L"disabled":L"auto");
@@ -342,7 +498,8 @@ static void gamePoint(void *controller, unsigned player, POINT point)
 
 static bool secondPlayerActive(void *controller)
 {
-    if (!rawMode || !_wcsicmp(guns[1].path,L"disabled")) return false;
+    if (gamepadMode ? gamepads[1].index == XUSER_MAX_COUNT :
+        (!rawMode || !_wcsicmp(guns[1].path,L"disabled"))) return false;
     typedef void *(*GetWorld)(void *);
     GetWorld getWorld = *(GetWorld *)(*(uint8_t **)controller+0x138);
     uint8_t *world = getWorld(controller);
@@ -422,6 +579,189 @@ static void callGame(void *controller, unsigned player, enum GunEvent kind)
     ((GameCall)(imageBase+methods[player][kind]))(controller);
 }
 
+static void *pauseContext;
+static HANDLE pauseSettings;
+static wchar_t pauseResult[2048];
+static unsigned pauseKeys, pauseSelection;
+static HWND pauseButtons[2];
+enum { PAUSE_RESUME=101, PAUSE_SETTINGS=102, PAUSE_TIMER=1 };
+enum { MENU_BACK=1, MENU_UP=2, MENU_DOWN=4, MENU_SELECT=8 };
+
+static bool setPaused(void *context, bool paused)
+{
+    /* UGameplayStatics::SetGamePaused and IsGamePaused in the verified export. */
+    typedef bool (*SetPaused)(void *, bool);
+    typedef bool (*IsPaused)(void *);
+    IsPaused isPaused = (IsPaused)(imageBase+0x11d4300);
+    if (isPaused(context) == paused) return true;
+    ((SetPaused)(imageBase+0x11dd760))(context,paused);
+    return isPaused(context) == paused;
+}
+
+static unsigned pauseInput(void)
+{
+    unsigned keys = 0;
+    if (GetAsyncKeyState(VK_ESCAPE) < 0) keys |= MENU_BACK;
+    if (GetAsyncKeyState(VK_UP) < 0) keys |= MENU_UP;
+    if (GetAsyncKeyState(VK_DOWN) < 0) keys |= MENU_DOWN;
+    if (GetAsyncKeyState(VK_RETURN) < 0) keys |= MENU_SELECT;
+    if (gamepadMode) for (unsigned p=0; p<2; ++p) {
+        XINPUT_STATE state;
+        if (gamepads[p].index == XUSER_MAX_COUNT ||
+            XInputGetState(gamepads[p].index,&state) != ERROR_SUCCESS) continue;
+        const unsigned buttons = state.Gamepad.wButtons;
+        if (buttons & (XINPUT_GAMEPAD_BACK | XINPUT_GAMEPAD_B)) keys |= MENU_BACK;
+        if ((buttons & XINPUT_GAMEPAD_DPAD_UP) || state.Gamepad.sThumbLY > 18000) keys |= MENU_UP;
+        if ((buttons & XINPUT_GAMEPAD_DPAD_DOWN) || state.Gamepad.sThumbLY < -18000) keys |= MENU_DOWN;
+        if (buttons & XINPUT_GAMEPAD_A) keys |= MENU_SELECT;
+    }
+    return keys;
+}
+
+static void openPauseSettings(HWND window)
+{
+    wchar_t root[2048], powerShell[512], command[3072];
+    const DWORD rootLength = GetEnvironmentVariableW(L"SCARLET_SETTINGS_ROOT",root,ARRAYSIZE(root));
+    const UINT systemLength = GetSystemDirectoryW(powerShell,ARRAYSIZE(powerShell)-64);
+    if (!rootLength || rootLength >= ARRAYSIZE(root) ||
+        !systemLength || systemLength >= ARRAYSIZE(powerShell)-64) return;
+    wcscat(powerShell,L"\\WindowsPowerShell\\v1.0\\powershell.exe");
+    const unsigned long session = (unsigned long)GetCurrentProcessId();
+    if (swprintf(pauseResult,ARRAYSIZE(pauseResult),L"%ls\\Local\\.pause-controls-%lu.ini",root,session) < 0 ||
+        swprintf(command,ARRAYSIZE(command),L"\"%ls\" -NoProfile -ExecutionPolicy Bypass -STA -File \"%ls\\scarlet-menu.ps1\" -StartMode PauseSettings -PauseSession %lu",
+                 powerShell,root,session) < 0) return;
+    DeleteFileW(pauseResult);
+    STARTUPINFOW start={.cb=sizeof start};
+    PROCESS_INFORMATION process;
+    if (!CreateProcessW(powerShell,command,NULL,NULL,FALSE,CREATE_NO_WINDOW,NULL,root,&start,&process)) {
+        MessageBoxW(window,L"Could not open the Scarlet Dawn settings.",L"Scarlet Dawn",MB_OK | MB_ICONERROR);
+        return;
+    }
+    CloseHandle(process.hThread);
+    pauseSettings = process.hProcess;
+    EnableWindow(window,FALSE);
+}
+
+static void applyPauseSettings(void)
+{
+    const wchar_t *section=L"Controls";
+    const unsigned style=GetPrivateProfileIntW(section,L"Style",reticleStyle,pauseResult);
+    const unsigned size=GetPrivateProfileIntW(section,L"Size",reticleSize,pauseResult);
+    const unsigned color=GetPrivateProfileIntW(section,L"Color",99,pauseResult);
+    const unsigned speed=GetPrivateProfileIntW(section,L"Sensitivity",gamepadSensitivity,pauseResult);
+    if (style <= RETICLE_OPEN_CROSS) reticleStyle = (enum ReticleStyle)style;
+    if (gamepadMode && reticleStyle == RETICLE_ORIGINAL) reticleStyle = RETICLE_RING_DOT;
+    if (size >= 1 && size <= 3) reticleSize = (int)size;
+    setReticleColor(color);
+    if (speed >= 50 && speed <= 175) gamepadSensitivity = speed;
+    for (unsigned p=0; p<2; ++p)
+        if (reticleSprites[p].window) InvalidateRect(reticleSprites[p].window,NULL,FALSE);
+    DeleteFileW(pauseResult);
+}
+
+static void resumeGame(HWND menu)
+{
+    if (pauseSettings || !setPaused(pauseContext,false)) return;
+    DestroyWindow(menu);
+    SetForegroundWindow(gameWindow);
+    SetFocus(gameWindow);
+}
+
+static LRESULT CALLBACK pauseProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
+{
+    if (message == WM_COMMAND && !pauseSettings && HIWORD(wp)==BN_CLICKED) {
+        if (LOWORD(wp)==PAUSE_RESUME) resumeGame(window);
+        if (LOWORD(wp)==PAUSE_SETTINGS) openPauseSettings(window);
+        return 0;
+    }
+    if (message == WM_CLOSE) {
+        resumeGame(window);
+        return 0;
+    }
+    if (message == WM_TIMER && wp==PAUSE_TIMER) {
+        if (pauseSettings) {
+            if (WaitForSingleObject(pauseSettings,0)==WAIT_OBJECT_0) {
+                CloseHandle(pauseSettings);
+                pauseSettings=NULL;
+                applyPauseSettings();
+                EnableWindow(window,TRUE);
+                SetForegroundWindow(window);
+                SetFocus(pauseButtons[pauseSelection]);
+                pauseKeys=pauseInput();
+            }
+            return 0;
+        }
+        const unsigned keys=pauseInput();
+        const unsigned pressed=keys & ~pauseKeys;
+        pauseKeys=keys;
+        if (GetForegroundWindow()!=window) return 0;
+        if (pressed & MENU_BACK) resumeGame(window);
+        else if (pressed & (MENU_UP | MENU_DOWN)) {
+            pauseSelection ^= 1;
+            SetFocus(pauseButtons[pauseSelection]);
+        } else if (pressed & MENU_SELECT) {
+            SendMessageW(pauseButtons[pauseSelection],BM_CLICK,0,0);
+        }
+        return 0;
+    }
+    if (message == WM_DESTROY) {
+        KillTimer(window,PAUSE_TIMER);
+        if (pauseSettings) CloseHandle(pauseSettings);
+        pauseSettings=NULL;
+        pauseWindow=NULL;
+        pauseContext=NULL;
+        gamepadTick=0;
+    }
+    return DefWindowProcW(window,message,wp,lp);
+}
+
+static bool beginPause(void *controller)
+{
+    if (!pauseRequested) return false;
+    pauseRequested=false;
+    if (GetForegroundWindow()!=gameWindow) return false;
+    typedef bool (*IsPaused)(void *);
+    if (((IsPaused)(imageBase+0x11d4300))(controller) || !setPaused(controller,true)) return false;
+    pauseContext=controller;
+    HINSTANCE instance=GetModuleHandleW(NULL);
+    WNDCLASSW cls={.lpfnWndProc=pauseProc,.hInstance=instance,.lpszClassName=L"ScarletPause",
+                   .hCursor=LoadCursor(NULL,IDC_ARROW),.hbrBackground=(HBRUSH)(COLOR_WINDOW+1)};
+    RegisterClassW(&cls);
+    RECT area;
+    GetWindowRect(gameWindow,&area);
+    pauseWindow=CreateWindowExW(WS_EX_TOOLWINDOW,L"ScarletPause",L"Scarlet Dawn paused",
+        WS_POPUP|WS_CAPTION|WS_SYSMENU,(area.left+area.right-320)/2,(area.top+area.bottom-172)/2,
+        320,172,gameWindow,NULL,instance,NULL);
+    if (pauseWindow) {
+        for (unsigned index=0; index<2; ++index) {
+            pauseButtons[index]=CreateWindowW(L"BUTTON",index?L"Settings":L"Resume",
+                WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,18,18+47*(int)index,268,36,pauseWindow,
+                (HMENU)(UINT_PTR)(PAUSE_RESUME+index),instance,NULL);
+            if (pauseButtons[index]) SendMessageW(pauseButtons[index],WM_SETFONT,(WPARAM)GetStockObject(DEFAULT_GUI_FONT),TRUE);
+        }
+    }
+    if (!pauseWindow || !pauseButtons[0] || !pauseButtons[1] || !SetTimer(pauseWindow,PAUSE_TIMER,25,NULL)) {
+        if (pauseWindow) DestroyWindow(pauseWindow);
+        setPaused(controller,false);
+        pauseContext=NULL;
+        return false;
+    }
+    for (unsigned p=0; p<2; ++p) {
+        callGame(controller,p,FIRE_UP);
+        callGame(controller,p,SELECT_UP);
+        callGame(controller,p,START_UP);
+    }
+    eventCount=0;
+    clearReticles();
+    releaseGamepadCursor();
+    pauseKeys=pauseInput();
+    pauseSelection=0;
+    ShowWindow(pauseWindow,SW_SHOW);
+    SetForegroundWindow(pauseWindow);
+    SetFocus(pauseButtons[0]);
+    return true;
+}
+
 static void updateReticles(void *controller)
 {
     if (reticleStyle==RETICLE_ORIGINAL) return;
@@ -435,7 +775,7 @@ static void updateReticles(void *controller)
     POINT cursor={0,0};
     bool cursorInClient=GetCursorPos(&cursor) && ScreenToClient(gameWindow,&cursor) && PtInRect(&client,cursor);
     bool wasHidden=hideNativeCursor;
-    hideNativeCursor=cursorInClient && (appData[0x231]!=0 || (rawMode && appData[0x232]!=0));
+    hideNativeCursor=cursorInClient && (gamepadMode || appData[0x231]!=0 || (rawMode && appData[0x232]!=0));
     if (hideNativeCursor) {
         CURSORINFO info={.cbSize=sizeof info};
         if (GetCursorInfo(&info) && (info.flags & CURSOR_SHOWING)) SetCursor(NULL);
@@ -446,7 +786,10 @@ static void updateReticles(void *controller)
     if (!ClientToScreen(gameWindow,&origin)) return;
     for (unsigned p=0;p<2;++p) {
         POINT point=*(const POINT *)((const uint8_t *)controller+(p?0xbe0:0xbd0));
-        if (reticleStyle==RETICLE_OFF || (p==1 && !rawMode) || !appData[0x231+p] ||
+        const bool showPlayer = gamepadMode ?
+            gamepads[p].index != XUSER_MAX_COUNT && (!p || secondPlayerIsActive) :
+            (!p || rawMode) && appData[0x231+p];
+        if (reticleStyle==RETICLE_OFF || !showPlayer ||
             !PtInRect(&client,point) ||
             (!gunMode && (!cursorInClient || ((point.x==0 && point.y==0) && (cursor.x!=0 || cursor.y!=0))))) {
             hideReticle(p);
@@ -468,16 +811,19 @@ __declspec(dllexport) void ScarletLightgunTick(void *controller)
     ((GameCall)(imageBase+0x1de6d0))(controller);
     if (!gameWindow) EnumThreadWindows(GetCurrentThreadId(),findWindow,0);
     if (!gameWindow) return;
+    if (pauseWindow || beginPause(controller)) return;
     if (!gunMode) {
         updateReticles(controller);
         return;
     }
 
-    if (!rawMode && GetForegroundWindow()==gameWindow) {
+    const bool foreground = GetForegroundWindow() == gameWindow;
+    updateGamepadCursor(foreground);
+    if (!rawMode && !gamepadMode && foreground) {
         POINT point;
         if (GetCursorPos(&point) && ScreenToClient(gameWindow,&point)) aim(0,point);
     }
-    if (rawMode && GetForegroundWindow()==gameWindow) {
+    if (rawMode && foreground) {
         static ULONGLONG nextRegistrationCheck;
         ULONGLONG now=GetTickCount64();
         if (now>=nextRegistrationCheck) {
@@ -488,7 +834,8 @@ __declspec(dllexport) void ScarletLightgunTick(void *controller)
     updateBorder();
 
     secondPlayerIsActive = secondPlayerActive(controller);
-    if (previousController!=controller) {
+    const bool controllerChanged = previousController != controller;
+    if (controllerChanged) {
         deliveredButtons[0]=deliveredButtons[1]=0;
         if (guns[0].inside) callGame(controller,0,SCREEN_IN);
         secondPlayerWasActive=false;
@@ -504,6 +851,10 @@ __declspec(dllexport) void ScarletLightgunTick(void *controller)
             callGame(controller,p,START_UP);
         }
         clearButtons=false;
+    }
+    if (gamepadMode) {
+        if (foreground) updateGamepads(controllerChanged);
+        else gamepadTick = 0;
     }
     for (unsigned i=0; i<eventCount; ++i) {
         const struct Event *e=&events[i];

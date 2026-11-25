@@ -14,11 +14,18 @@ static struct ReticleSprite {
     COLORREF color;
 } reticleSprites[2];
 
+static void setReticleColor(unsigned color)
+{
+    const COLORREF palette[] = {RGB(255,255,255),RGB(255,80,80),RGB(116,255,121),RGB(93,234,255),RGB(255,214,91)};
+    if (color >= ARRAYSIZE(palette)) return;
+    reticleSprites[0].color=palette[color];
+    reticleSprites[1].color=palette[color==3?4:3];
+}
+
 static void configureReticle(void)
 {
     const wchar_t *styles[] = {L"Original",L"Off",L"Dot",L"Cross",L"Ring",L"RingDot",L"OpenCross"};
     const wchar_t *colors[] = {L"White",L"Red",L"Green",L"Cyan",L"Amber"};
-    const COLORREF palette[] = {RGB(255,255,255),RGB(255,80,80),RGB(116,255,121),RGB(93,234,255),RGB(255,214,91)};
     wchar_t text[24];
     if (GetEnvironmentVariableW(L"SCARLET_RETICLE_STYLE",text,ARRAYSIZE(text))) {
         for (unsigned i=0; i<ARRAYSIZE(styles); ++i)
@@ -33,8 +40,7 @@ static void configureReticle(void)
         for (unsigned i=0; i<ARRAYSIZE(colors); ++i)
             if (!_wcsicmp(text,colors[i])) chosen=i;
     }
-    reticleSprites[0].color=palette[chosen];
-    reticleSprites[1].color=palette[chosen==3?4:3];
+    setReticleColor(chosen);
 }
 
 static void reticleLine(HDC dc, int x1, int y1, int x2, int y2)

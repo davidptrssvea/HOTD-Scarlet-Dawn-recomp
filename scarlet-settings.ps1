@@ -74,7 +74,7 @@ function Get-ScarletSettings([string]$Root) {
     $settings = @{ Resolution='1280x720'; Scale=75; Quality=0; Display='Windowed'; VSync=$false; StereoFix=[IO.File]::Exists((Join-Path $Root ('Local/Audio/'+$ScarletStereoName)))
         InputMode='Mouse'; Gun1='auto'; Gun2='disabled'; BorderWidth=50; OffscreenReload=$true
         SindenSwitchWeaponOnReload=$false; MuteCreditSounds=$false
-        ReticleStyle='Original'; ReticleSize=2; ReticleColor='White' }
+        ReticleStyle='Original'; ReticleSize=2; ReticleColor='White'; GamepadSensitivity=100 }
     $defaults=Get-ScarletAdvancedDefaults
     foreach ($key in $defaults.Keys) { $settings[$key]=$defaults[$key] }
     $path = Join-Path $Root 'Local/Settings.json'
@@ -101,7 +101,8 @@ function Assert-ScarletSettings($Settings) {
         $Settings.Quality -notin 0,1,2,3 -or
         $Settings.Display -notin 'Windowed','Borderless' -or
         $Settings.VSync -isnot [bool] -or $Settings.StereoFix -isnot [bool] -or
-        $Settings.InputMode -notin 'Mouse','Sinden','RawInput' -or
+        $Settings.InputMode -notin 'Mouse','Sinden','RawInput','Gamepad' -or
+        $Settings.GamepadSensitivity -notin 50,75,100,125,150,175 -or
         $Settings.ReticleStyle -notin (Get-ScarletReticleStyles).Keys -or
         $Settings.ReticleColor -notin (Get-ScarletReticleColors).Keys -or $Settings.ReticleSize -notin 1,2,3 -or
         $Settings.BorderWidth -notin 0,25,50,75,100 -or $Settings.OffscreenReload -isnot [bool] -or
@@ -458,19 +459,19 @@ function New-ScarletStartInfo([string]$Root, $Settings) {
     $log = Join-Path $logs ('Hodzero-' + [DateTime]::Now.ToString('yyyyMMdd-HHmmss-fff') + '.log')
     $window = if ($Settings.Display -eq 'Windowed') { '-windowed' } else { '-fullscreen' }
     $info = [Diagnostics.ProcessStartInfo]::new()
-    $info.FileName=Get-ScarletPatchedExecutable $Root $exe 'Aim'
-    if ($Settings.InputMode -ne 'Mouse' -or $Settings.ReticleStyle -ne 'Original') {
-        $info.FileName=Get-ScarletPatchedExecutable $Root $info.FileName 'Lightgun'
-        $info.EnvironmentVariables['SCARLET_GUN_MODE'] = $Settings.InputMode
-        $info.EnvironmentVariables['SCARLET_GUN_P1'] = $Settings.Gun1
-        $info.EnvironmentVariables['SCARLET_GUN_P2'] = $Settings.Gun2
-        $info.EnvironmentVariables['SCARLET_GUN_RELOAD'] = [string][int]$Settings.OffscreenReload
-        $info.EnvironmentVariables['SCARLET_SINDEN_SWITCH_WEAPON_ON_RELOAD'] = [string][int]($Settings.InputMode -eq 'Sinden' -and $Settings.SindenSwitchWeaponOnReload)
-        $info.EnvironmentVariables['SCARLET_GUN_BORDER'] = if ($Settings.InputMode -ne 'Mouse') { [string]$Settings.BorderWidth } else { '0' }
-        $info.EnvironmentVariables['SCARLET_RETICLE_STYLE'] = $Settings.ReticleStyle
-        $info.EnvironmentVariables['SCARLET_RETICLE_SIZE'] = [string]$Settings.ReticleSize
-        $info.EnvironmentVariables['SCARLET_RETICLE_COLOR'] = $Settings.ReticleColor
-    }
+    $aim = Get-ScarletPatchedExecutable $Root $exe 'Aim'
+    $info.FileName=Get-ScarletPatchedExecutable $Root $aim 'Lightgun'
+    $info.EnvironmentVariables['SCARLET_SETTINGS_ROOT'] = $Root
+    $info.EnvironmentVariables['SCARLET_GUN_MODE'] = $Settings.InputMode
+    $info.EnvironmentVariables['SCARLET_GAMEPAD_SENSITIVITY'] = [string]$Settings.GamepadSensitivity
+    $info.EnvironmentVariables['SCARLET_GUN_P1'] = $Settings.Gun1
+    $info.EnvironmentVariables['SCARLET_GUN_P2'] = $Settings.Gun2
+    $info.EnvironmentVariables['SCARLET_GUN_RELOAD'] = [string][int]$Settings.OffscreenReload
+    $info.EnvironmentVariables['SCARLET_SINDEN_SWITCH_WEAPON_ON_RELOAD'] = [string][int]($Settings.InputMode -eq 'Sinden' -and $Settings.SindenSwitchWeaponOnReload)
+    $info.EnvironmentVariables['SCARLET_GUN_BORDER'] = if ($Settings.InputMode -in 'Sinden','RawInput') { [string]$Settings.BorderWidth } else { '0' }
+    $info.EnvironmentVariables['SCARLET_RETICLE_STYLE'] = $Settings.ReticleStyle
+    $info.EnvironmentVariables['SCARLET_RETICLE_SIZE'] = [string]$Settings.ReticleSize
+    $info.EnvironmentVariables['SCARLET_RETICLE_COLOR'] = $Settings.ReticleColor
     $info.Arguments='-launch=pc -NotInstalled -unattended -nosplash {0} -ResX={1} -ResY={2} -UserDir="{3}" -abslog="{4}"' -f $window,$width,$height,$profile,$log
     $info.WorkingDirectory=$game
     $info.UseShellExecute=$false

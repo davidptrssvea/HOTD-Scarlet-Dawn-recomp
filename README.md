@@ -53,9 +53,24 @@ Startaren fyller i saknade standardbindningar i **Local/Profile/Saved/Config/Win
 
 Under **Settings → Controls → Crosshair** kan du välja Original, Off, Dot, Cross, Ring, Ring + dot eller Open cross. De egna siktena stöder tre storlekar och fem färger. Vid tvåspelarläge får spelare 2 automatiskt en kontrasterande färg. Siktet följer musen eller den tilldelade ljuspistolen under spel och döljs utanför spelytan.
 
+## Handkontroll
+
+Välj **Gamepad (XInput)** under **Settings → Controls** och spara. Läget stöder Xbox-kompatibla XInput-handkontroller och tilldelar upp till två handkontroller automatiskt. Tryck **Menu / Start** på din handkontroll för att gå med.
+
+- **Vänster eller höger spak** siktar.
+- **RT** eller **A** skjuter och väljer i spelets menyer.
+- **X** eller **LB** laddar om.
+- **Y** eller **RB** byter vapen.
+
+Med siktet **Original** visar handkontrollsläget en ring med punkt. Du kan välja ett annat sikte eller stänga av det under **Crosshair**.
+
+## Paus
+
+Tryck **Esc** eller **View / Back** på handkontrollen för att pausa. Välj **Resume** för att fortsätta eller **Settings** för att öppna inställningarna. Du kan navigera i pausmenyn med styrkorset och välja med **A**. Siktesinställningar och **Gamepad aim speed** börjar gälla när du fortsätter. Övriga inställningar börjar gälla nästa gång du startar spelet.
+
 ## Sinden och andra ljuspistoler
 
-Under **Settings → Controls** finns tre inmatningslägen.
+Under **Settings → Controls** kan du också välja mus eller ljuspistol.
 
 - **Mouse** använder den vanliga musstyrningen.
 - **Sinden (Windows mouse)** använder pekaren från Sinden-programvaran för spelare 1. Starta och kalibrera pistolen i Sinden-programvaran. Använd vänster musknapp för avtryckaren på skärmen och höger musknapp för avtryckaren utanför skärmen i Sinden-programvaran.
