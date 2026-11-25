@@ -42,6 +42,61 @@ function Start-TestWorker([string]$Fixture,[string]$Url) {
 $base=Join-Path ([IO.Path]::GetTempPath()) ('HOTD updater check '+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($base)
 
+Add-Type -TypeDefinition @"
+using System.IO;
+using System.Threading;
+public static class HotdUpdateTestLock {
+    public static void ReleaseSoon(FileStream stream) {
+        ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(600); stream.Dispose(); });
+    }
+}
+"@
+$status=Join-Path $base 'status.txt'
+Set-HotdUpdateStatus $status 'Preparing'
+$held=[IO.File]::Open($status,'Open','Read','Read')
+try {
+    [HotdUpdateTestLock]::ReleaseSoon($held)
+    Set-HotdUpdateStatus $status 'Ready'
+    Assert ((Read-HotdUpdateStatus $status) -eq 'Ready') 'A temporary lock lost the status update.'
+} finally { $held.Dispose() }
+
+$installed=Join-Path $base 'installed'
+$staged=Join-Path $base 'staged'
+$backup=Join-Path $base 'backup'
+$locked=Join-Path $installed 'game.dll'
+$settings=Join-Path $installed 'settings.json'
+$paths=@('launcher.ps1','game.dll')
+[void][IO.Directory]::CreateDirectory($installed)
+[void][IO.Directory]::CreateDirectory($staged)
+[IO.File]::WriteAllText($settings,'custom settings')
+foreach ($name in $paths) {
+    [IO.File]::WriteAllText((Join-Path $installed $name),'original')
+    [IO.File]::WriteAllText((Join-Path $staged $name),'updated')
+}
+$held=[IO.File]::Open($locked,'Open','Read','Read')
+try {
+    $failure=$null
+    try { Install-HotdManagedFiles $staged $installed $backup $paths }
+    catch { $failure=$_.Exception.Message }
+    Assert ($failure -and $failure.Contains($locked) -and $failure -match '0x80070020') 'A persistent lock did not report the path and sharing error.'
+    foreach ($name in $paths) {
+        Assert ([IO.File]::ReadAllText((Join-Path $installed $name)) -eq 'original') "Rollback did not preserve $name."
+    }
+} finally { $held.Dispose() }
+
+[IO.File]::WriteAllText((Join-Path $staged 'launcher.ps1'),'updated')
+$held=[IO.File]::Open($locked,'Open','Read','Read')
+try {
+    [HotdUpdateTestLock]::ReleaseSoon($held)
+    Install-HotdManagedFiles $staged $installed $backup $paths
+    foreach ($name in $paths) {
+        Assert ([IO.File]::ReadAllText((Join-Path $installed $name)) -eq 'updated') "A temporary lock prevented updating $name."
+        Assert ([IO.File]::ReadAllText((Join-Path $backup $name)) -eq 'original') "The backup of $name was lost."
+    }
+    Assert ([IO.File]::ReadAllText($settings) -eq 'custom settings') 'The update changed local settings.'
+} finally { $held.Dispose() }
+Write-Host 'PASS: temporary status and program file locks are retried, and persistent locks report the path and roll back.'
+
 Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase
 foreach ($mode in 'Button','Close','Ready') {
     $fixture=Join-Path $base $mode

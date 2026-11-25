@@ -1,6 +1,6 @@
-# Scarlet Dawn PC v1.0.8 - Fix launching after setup
+# Scarlet Dawn PC v1.0.9 - Updater and launcher fixes
 
-- The launcher next to **Setup.cmd** now opens the completed default installation in **ScarletDawn-PC** automatically.
-- If either required game file is missing, the launcher reports its exact path.
+- Retry temporary Windows file replacement errors during updates and Setup. If the updater still cannot replace a file, it attempts to restore any files it already replaced and records the affected path and Windows error code in `update-error.log`.
+- Show the installed builder version directly in the main menu.
 
-Use **Updates > Download and install** to update an existing installation and keep your settings. For a fresh installation, extract the builder ZIP, run **Setup.cmd**, and open **ScarletDawn-PC\Play Scarlet Dawn.exe**.
+Use **Updates > Download and install** from a working launcher. If the previous updater failed, close the launcher and game, extract this release's ZIP into a separate folder, and run `Setup.cmd -InstallDir "D:\Games\ScarletDawn-PC"` with your existing installation path. This keeps your game files and settings.

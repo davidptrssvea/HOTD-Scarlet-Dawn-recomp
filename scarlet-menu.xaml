@@ -50,6 +50,7 @@
                 <TextBlock Text="SCARLET" FontSize="61" FontWeight="Black" Foreground="#EE796F"/>
                 <TextBlock Text="DAWN" FontSize="61" FontWeight="Black" Margin="0,-15,0,18"/>
                 <TextBlock Text="PC preview" Foreground="#D9A19F" FontSize="15"/>
+                <TextBlock Name="InstalledVersion" Foreground="#E8D9DF" FontSize="15" Margin="0,6,0,0" Visibility="Collapsed"/>
             </StackPanel>
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

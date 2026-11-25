@@ -59,6 +59,26 @@ function Expand-HotdUpdateBundle([string]$Zip, [string]$Directory, [string]$Bund
     $root
 }
 
+function Replace-HotdUpdateFile([string]$Source, [string]$Target, [string]$Backup) {
+    for ($attempt=0; ; $attempt++) {
+        try {
+            if ($Backup) { [IO.File]::Replace($Source,$Target,$Backup) }
+            else { [IO.File]::Replace($Source,$Target,[NullString]::Value) }
+            return
+        } catch {
+            $cause = $_.Exception.GetBaseException()
+            $code = $cause.HResult.ToString('X8')
+            # ReplaceFile can partially rename files on failure. Retry only with the original paths intact.
+            if ($code -notin '80070020','80070021','80070497' -or $attempt -ge 10 -or
+                ![IO.File]::Exists($Source) -or ![IO.File]::Exists($Target) -or
+                ($Backup -and [IO.File]::Exists($Backup))) {
+                throw [IO.IOException]::new("Could not replace '$Target' (0x$code). $($cause.Message)", $cause)
+            }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+}
+
 function Install-HotdManagedFiles([string]$Stage, [string]$Root, [string]$Backup, [string[]]$Paths) {
     $applied = [Collections.Generic.List[object]]::new()
     try {
@@ -79,7 +99,14 @@ function Install-HotdManagedFiles([string]$Stage, [string]$Root, [string]$Backup
                     throw "Move the linked program file before updating: $target"
                 }
                 [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
-                [IO.File]::Replace($source, $target, $saved)
+                try { Replace-HotdUpdateFile $source $target $saved }
+                catch {
+                    # Windows may have already renamed the original to the backup path.
+                    if ([IO.File]::Exists($saved)) {
+                        $applied.Add(@{ Target=$target; Saved=$saved; Existing=$true })
+                    }
+                    throw
+                }
             } else { [IO.File]::Move($source, $target) }
             $applied.Add(@{ Target=$target; Saved=$saved; Existing=$existing })
         }
@@ -92,7 +119,7 @@ function Install-HotdManagedFiles([string]$Stage, [string]$Root, [string]$Backup
                 if ($item.Existing) {
                     if ([IO.File]::Exists($item.Target)) {
                         $failed = $item.Saved + '.failed'
-                        [IO.File]::Replace($item.Saved, $item.Target, $failed)
+                        Replace-HotdUpdateFile $item.Saved $item.Target $failed
                         [IO.File]::Delete($failed)
                     }
                     else { [IO.File]::Move($item.Saved, $item.Target) }
@@ -148,7 +175,7 @@ function Test-ScarletGameRunning([string]$App) {
 function Set-HotdUpdateStatus([string]$Status,[string]$Text) {
     $pending=$Status+'.new'
     [IO.File]::WriteAllText($pending,$Text)
-    if ([IO.File]::Exists($Status)) { [IO.File]::Replace($pending,$Status,[NullString]::Value) }
+    if ([IO.File]::Exists($Status)) { Replace-HotdUpdateFile $pending $Status }
     else { [IO.File]::Move($pending,$Status) }
 }
 
@@ -247,14 +274,21 @@ function Invoke-HotdUpdateWorker([string]$Request) {
         if (Test-ScarletGameRunning $app) { throw 'Close the running game before updating.' }
         Set-HotdUpdateStatus $status 'Installing the verified launcher files...'
         Install-HotdManagedFiles $bundle $app (Join-Path $work 'backup') $files
-        Set-HotdUpdateStatus $status "Installed $tag"
+        try { Set-HotdUpdateStatus $status "Installed $tag" }
+        catch [IO.IOException], [UnauthorizedAccessException] { Write-Verbose $_.Exception.Message }
         try { [IO.File]::Delete($zip) } catch {}
     } catch [OperationCanceledException] {
         $ready=$false
         Set-HotdUpdateStatus $status 'Cancelled'
     } catch {
-        $message=$_.Exception.Message + "`n`nUpdate files and logs: $work"
-        Set-HotdUpdateStatus $status ('Error: '+$message)
+        $failure = $_
+        $message = $failure.Exception.Message + "`n`nUpdate files and logs: $work"
+        try {
+            [IO.File]::WriteAllText((Join-Path $work 'update-error.log'),
+                $failure.Exception.ToString() + "`r`n" + $failure.ScriptStackTrace)
+        } catch [IO.IOException], [UnauthorizedAccessException] { Write-Verbose $_.Exception.Message }
+        try { Set-HotdUpdateStatus $status ('Error: '+$message) }
+        catch [IO.IOException], [UnauthorizedAccessException] { Write-Verbose $_.Exception.Message }
         if ($ready) {
             Add-Type -AssemblyName PresentationFramework
             [void][Windows.MessageBox]::Show($message,'Scarlet Dawn update','OK','Error')
@@ -340,8 +374,17 @@ function Show-HotdUpdateProgress($Window,[Diagnostics.Process]$Process,[string]$
 function Add-HotdUpdater($Window, $MainPage, [string]$App) {
     $game = Get-HotdUpdateGame
     $versionFile = Join-Path $App 'scarlet-version.txt'
-    $tag = if ([IO.File]::Exists($versionFile)) { [IO.File]::ReadAllText($versionFile).Trim() }
+    $tag = try {
+        if ([IO.File]::Exists($versionFile)) { [IO.File]::ReadAllText($versionFile).Trim() }
+    } catch [IO.IOException], [UnauthorizedAccessException] {
+        Write-Verbose $_.Exception.Message
+    }
     $installed = ConvertTo-HotdVersion $tag
+    $versionLabel = $Window.FindName('InstalledVersion')
+    if ($versionLabel) {
+        $versionLabel.Text = if ($installed) { "Installed version $tag" } else { 'Installed version unknown' }
+        $versionLabel.Visibility = 'Visible'
+    }
     $button = [Windows.Controls.Button]::new()
     $button.Name = 'Updates'
     $button.Content = if ($installed) { "Updates ($tag)" } else { 'Updates' }
