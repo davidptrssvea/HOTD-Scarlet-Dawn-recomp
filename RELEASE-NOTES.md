@@ -1,6 +1,10 @@
-# Scarlet Dawn PC v1.0.9 - Updater and launcher fixes
+# Scarlet Dawn PC v1.0.10 – Gamepad support
 
-- Retry temporary Windows file replacement errors during updates and Setup. If the updater still cannot replace a file, it attempts to restore any files it already replaced and records the affected path and Windows error code in `update-error.log`.
-- Show the installed builder version directly in the main menu.
+- Added XInput gamepad support for up to two players, with stick aiming, adjustable aim speed, and automatic mouse cursor hiding during gamepad play.
+- Added in-game pause and settings via View or Back on a controller, or Esc on the keyboard. Aim and reticle changes apply when you resume.
+- Setup and launch can import the existing stereo fix automatically when matching, verified audio files are available in your local dump or installation.
+- Updated Game Library with installed versions, display and input summaries, per-game release checks, and a mouse and lightgun input test.
 
-Use **Updates > Download and install** from a working launcher. If the previous updater failed, close the launcher and game, extract this release's ZIP into a separate folder, and run `Setup.cmd -InstallDir "D:\Games\ScarletDawn-PC"` with your existing installation path. This keeps your game files and settings.
+Enable **Gamepad (XInput)** under **Settings > Controls** and save. Press **Menu / Start** to join.
+
+Update from **Updates > Download and install**. For a manual update, extract the Local Builder ZIP, run `Setup.cmd`, and select your existing installation and game files.

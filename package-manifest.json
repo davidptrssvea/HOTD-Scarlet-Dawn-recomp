@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "version": "v1.0.9",
+  "version": "v1.0.10",
   "files": [
     {
       "path": "Launcher.cs",
@@ -12,15 +12,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "36c9ed1d65a64c3b5e145af16d929b3089c5b8bb2cd731edf32aefd62fb52b85"
+      "sha256": "48fa8d6f8b25b492973fb5fe4cf0faf54aaad35a2100c1242a85b342e554446f"
     },
     {
       "path": "RELEASE-NOTES.md",
-      "sha256": "d7b77e0576b8fa59780cf8ef4fccc0f5c68a77e0887bbab6309c810b5ecfbce4"
+      "sha256": "c321e584f183d082342ffc103075b007ecfb98e5a740e6040cc07c8e99e6265e"
     },
     {
       "path": "ScarletLightgun.dll",
-      "sha256": "81aed24e6545a5a55ba2955945038c4a86864ec3893c62a8ad4d8aa3c1784c1f"
+      "sha256": "3a587f73ba4e5a4c4d7c87c83c2bf7c7181a3278e94cdcdf2b8eabe4a239b24f"
     },
     {
       "path": "build-scarlet-lightgun-patch.py",
@@ -36,27 +36,27 @@
     },
     {
       "path": "scarlet-lightgun-patch.json",
-      "sha256": "27d7de97b32b605d2486840b1cc8725ebcb1da8032e6eb76690cf1863ca916ff"
+      "sha256": "67f35f16765e608cc0076cee33afc0c254a1172c64d4b96308e13a7c327a6a4a"
     },
     {
       "path": "scarlet-lightgun.c",
-      "sha256": "6f61bd21dc2f5512c2ea8cbee9d0e06fa5e44f8f08daee84a6ab93950568d593"
+      "sha256": "baa446d3fe1a7ad1ab7d4bab1897988859367ae126c1d2031fe94a75b60a0316"
     },
     {
       "path": "scarlet-menu.ps1",
-      "sha256": "4720600dc7c472b0c8e27bdaf3c15e9eb5f93d469678cc7d5acf1a2c12108bc0"
+      "sha256": "65d576cab322270fab81ea00849e73a2d30c222649c4acda1f3a3656e2d165dd"
     },
     {
       "path": "scarlet-menu.xaml",
-      "sha256": "93f377e35168fd01d14557bb4de73139c067f404713593e032957f52851f8b48"
+      "sha256": "2289bf8f66c0fe47c0af68573bf5b8a4d2cebc3c1901684afb1c94f127760fc8"
     },
     {
       "path": "scarlet-reticle.h",
-      "sha256": "67f40b6ad5fa297f2284dba78d4694955d682f1a0402e0eef77af2de8a56257b"
+      "sha256": "4a6fca1afd4e44971307e333b40f6e7b111e0a4d5f37cfebef24947212ef7ff9"
     },
     {
       "path": "scarlet-settings.ps1",
-      "sha256": "962e612ca8cc8f0d78a8abcd5e74164004e916e68237ad93bec06b596740e76a"
+      "sha256": "69002f2b67ecd26d71bccfc264510950d852a699746ec00ea2ddef0468a05f88"
     },
     {
       "path": "scarlet-update.ps1",
@@ -64,7 +64,7 @@
     },
     {
       "path": "scarlet-version.txt",
-      "sha256": "8b5c7d3ce1fb5c2ba6cc2c172b1a7bf8d6bb3a0bcdd239da06287fdd1a9ffdfa"
+      "sha256": "286aeb688cc2982e4b225bf6fde694006c82f6e05e1b191fd1d5c94275c3946e"
     }
   ]
 }
