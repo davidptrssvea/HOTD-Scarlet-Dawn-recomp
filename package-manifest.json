@@ -12,7 +12,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "526bf95775cab5bca73cf69880b8a56dc66c5939fb6912b6b700ba767e600e93"
+      "sha256": "36c9ed1d65a64c3b5e145af16d929b3089c5b8bb2cd731edf32aefd62fb52b85"
     },
     {
       "path": "RELEASE-NOTES.md",
@@ -56,7 +56,7 @@
     },
     {
       "path": "scarlet-settings.ps1",
-      "sha256": "affd0f63438f32e3d7a1fde8165f77cfe90f75c11b4524ef63ecc08d1201ac86"
+      "sha256": "962e612ca8cc8f0d78a8abcd5e74164004e916e68237ad93bec06b596740e76a"
     },
     {
       "path": "scarlet-update.ps1",

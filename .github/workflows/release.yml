@@ -14,6 +14,9 @@ jobs:
       - name: Test updater progress and cancellation
         shell: powershell
         run: ./.release/test_update_progress.ps1
+      - name: Test verified local stereo audio import
+        shell: powershell
+        run: ./.release/test_stereo_import.ps1
       - name: Validate the builder package
         shell: powershell
         run: |

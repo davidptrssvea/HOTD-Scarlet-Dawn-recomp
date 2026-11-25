@@ -37,7 +37,9 @@ Upplösning, renderingsskala, kvalitet, fönsterläge och VSync kan också välj
 
 ## Ljud
 
-**Apply stereo sound fix** använder din lokala stereopatch när den stödda patchfilen och ACF-filerna finns tillgängliga. Setup importerar dessa från dumpen om de matchar den kända stereofixen. Menyn använder stereopatchen och dess ACF-fil tillsammans med tvåkanalig CRI/WASAPI. Avmarkera valet för att återställa den lokala spelkopians ursprungliga ACF och ta bort den hanterade stereopatchen ur Paks-mappen. Valet tillämpas när spelet startas.
+**Apply stereo sound fix** använder vår verifierade stereopatch och dess matchande ACF-filer från din egen dump eller spelmapp. Setup importerar dem automatiskt även till en befintlig installation och sparar sökvägen till den valda dumpen. Vid spelstart letar startaren också efter filer som har lagts i **Game** efter installationen, samt i den sparade dumpen. De hashverifierade filerna lagras i **Local/Audio**; ingen manuell kopiering dit behövs. Originaldumpen ändras inte.
+
+När stereofixen aktiveras används den matchande stereokonfigurationen tillsammans med tvåkanalig CRI/WASAPI. När den stängs av återställs den verifierade originalkonfigurationen och endast vår hanterade stereo-PAK tas bort ur spelkopians Paks-mapp. Originalet kan hämtas från en originaldump eller en kvarvarande **NewProject.acf.original** / **NewProject.acf.previous**. Okända patchvarianter avvisas. Om en del av paret saknas kan startaren inte skapa den: lägg våra verifierade filer i dumpen eller spelmappen och prova igen. Inga spel- eller ljudassets följer med paketet eller laddas ned av importen. Valet tillämpas nästa gång spelet startas.
 
 ## Spelstyrning
 

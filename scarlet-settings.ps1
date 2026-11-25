@@ -71,7 +71,7 @@ function Get-ScarletSHA256([string]$Path) {
 }
 
 function Get-ScarletSettings([string]$Root) {
-    $settings = @{ Resolution='1280x720'; Scale=75; Quality=0; Display='Windowed'; VSync=$false; StereoFix=[IO.File]::Exists((Join-Path $Root ('Local/Audio/'+$ScarletStereoName)))
+    $settings = @{ Resolution='1280x720'; Scale=75; Quality=0; Display='Windowed'; VSync=$false; StereoFix=([IO.File]::Exists((Join-Path $Root ('Local/Audio/'+$ScarletStereoName))) -and [IO.File]::Exists((Join-Path $Root 'Local/Audio/NewProject.stereo.acf')))
         InputMode='Mouse'; Gun1='auto'; Gun2='disabled'; BorderWidth=50; OffscreenReload=$true
         SindenSwitchWeaponOnReload=$false; MuteCreditSounds=$false
         ReticleStyle='Original'; ReticleSize=2; ReticleColor='White'; GamepadSensitivity=100 }
@@ -197,6 +197,81 @@ function Set-ScarletInputDefaults([string]$Path) {
     Set-ScarletFile $Path (($lines -join "`r`n") + "`r`n")
 }
 
+# Search known local layouts only. Never download or synthesize game audio.
+function Get-ScarletAudioRoots([string]$Root, [string[]]$Sources) {
+    $paths=[Collections.Generic.List[string]]::new()
+    $paths.Add($Root)
+    foreach ($source in $Sources) { if ($source) { $paths.Add($source) } }
+    $record=Join-Path $Root 'Local/dump-path.txt'
+    if ([IO.File]::Exists($record)) {
+        $saved=[IO.File]::ReadAllText($record).Trim()
+        if ($saved -and [IO.Path]::IsPathRooted($saved)) { $paths.Add($saved) }
+    }
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $paths) {
+        if (![IO.Path]::IsPathRooted($path)) { continue }
+        foreach ($suffix in '', 'Game', 'WindowsNoEditor', 'HOTDSD/App/Hodzero/WindowsNoEditor',
+                            'App/Hodzero/WindowsNoEditor', 'Hodzero/WindowsNoEditor') {
+            $candidate=if ($suffix) { Join-Path $path $suffix } else { $path }
+            $candidate=[IO.Path]::GetFullPath($candidate)
+            if ($seen.Add($candidate) -and [IO.Directory]::Exists($candidate)) { $candidate }
+        }
+    }
+}
+
+function Import-ScarletStereoFiles([string]$Root, [string[]]$Sources) {
+    $wanted=@{
+        $ScarletStereoHash=$ScarletStereoName
+        $ScarletStereoAcf='NewProject.stereo.acf'
+        $ScarletOriginalAcf='NewProject.original.acf'
+    }
+    $audio=Join-Path $Root 'Local/Audio'
+    $ready=@{}
+    foreach ($hash in $wanted.Keys) {
+        $target=Join-Path $audio $wanted[$hash]
+        if ([IO.File]::Exists($target) -and (Get-ScarletSHA256 $target) -eq $hash) { $ready[$hash]=$true }
+    }
+    if ($ready.Count -eq $wanted.Count) { return }
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($source in Get-ScarletAudioRoots $Root $Sources) {
+        $candidates=[Collections.Generic.List[string]]::new()
+        foreach ($relative in '', 'Local/Audio', 'Audio', 'Hodzero/Content/Paks') {
+            $folder=if ($relative) { Join-Path $source $relative } else { $source }
+            $candidates.Add((Join-Path $folder $ScarletStereoName))
+        }
+        foreach ($relative in '', 'Local/Audio', 'Audio', 'Hodzero/Content/Hodzero_V1/ADX') {
+            $folder=if ($relative) { Join-Path $source $relative } else { $source }
+            if ([IO.Directory]::Exists($folder)) {
+                foreach ($path in [IO.Directory]::EnumerateFiles($folder,'NewProject*.acf*')) { $candidates.Add($path) }
+            }
+        }
+        foreach ($path in $candidates) {
+            if (!$seen.Add($path) -or ![IO.File]::Exists($path)) { continue }
+            # The known ACFs/PAK are small. Do not hash unrelated large game data.
+            if (([IO.FileInfo]::new($path)).Length -gt 1MB) { continue }
+            $bytes=[IO.File]::ReadAllBytes($path)
+            $sha=[Security.Cryptography.SHA256]::Create()
+            try { $hash=[BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-','') }
+            finally { $sha.Dispose() }
+            if (!$wanted.ContainsKey($hash) -or $ready[$hash]) { continue }
+            # Hash the same bytes we write; files in the dump/game stay untouched.
+            Set-ScarletBytes (Join-Path $audio $wanted[$hash]) $bytes
+            $ready[$hash]=$true
+            if ($ready.Count -eq $wanted.Count) { return }
+        }
+    }
+}
+
+function Resolve-ScarletDumpPath([string]$Path) {
+    $inputRoot=(Resolve-Path -LiteralPath $Path -ErrorAction Stop).ProviderPath
+    $exe='Hodzero/Binaries/Win64/Hodzero-Win64-Shipping.exe'
+    $pak='Hodzero/Content/Paks/Hodzero-WindowsNoEditor.pak'
+    foreach ($candidate in Get-ScarletAudioRoots $inputRoot) {
+        if ([IO.File]::Exists((Join-Path $candidate $exe)) -and [IO.File]::Exists((Join-Path $candidate $pak))) { return $candidate }
+    }
+    throw 'Select an extracted Scarlet Dawn Export dump with the supported Windows executable.'
+}
+
 function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
     $folder = Join-Path $Root 'Game/Hodzero/Content/Paks'
     if (![IO.Directory]::Exists($folder)) { throw 'The local game copy is missing its Paks folder.' }
@@ -205,6 +280,7 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
             throw 'The local game copy must use ordinary folders.'
         }
     }
+    Import-ScarletStereoFiles $Root
     $target = Join-Path $folder $ScarletStereoName
     $patch = Join-Path $Root ("Local/Audio/" + $ScarletStereoName)
     $acf = Join-Path $Root 'Game/Hodzero/Content/Hodzero_V1/ADX/NewProject.acf'
@@ -216,14 +292,14 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
         throw 'NewProject.acf differs from the known stereo and original variants.'
     }
     if ($current -ne $wanted -and (![IO.File]::Exists($replacement) -or (Get-ScarletSHA256 $replacement) -ne $wanted)) {
-        throw 'The verified ACF variant is missing from Local/Audio.'
+        throw 'The verified audio configuration is missing. Put our matching stereo patch and ACF files in your own dump or Game folder, or rerun Setup with that dump.'
     }
     $exists = [IO.File]::Exists($target)
     if ($exists -and ((Get-ScarletSHA256 $target) -ne $ScarletStereoHash)) {
         throw 'The existing stereo patch differs from the verified copy. Move that patch out of Paks before switching audio.'
     }
     if ($Enabled -and !$exists -and (![IO.File]::Exists($patch) -or (Get-ScarletSHA256 $patch) -ne $ScarletStereoHash)) {
-        throw 'The verified stereo patch is missing from Local/Audio.'
+        throw 'Our verified stereo PAK is missing. Put the matching stereo patch in your dump or Game/Hodzero/Content/Paks, or rerun Setup with that dump.'
     }
     if ($current -ne $wanted) {
         Set-ScarletBytes $acf ([IO.File]::ReadAllBytes($replacement))
