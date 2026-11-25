@@ -16,4 +16,4 @@ Generated portable stereo PAK SHA-256:
 
 The recipe contains export offsets, hashes and numeric routing edits only. Original INI, ACF and Unreal resource data are read from the user's supported Export PAK. Existing verified legacy PAKs remain supported. The new INI does not pin playback to a developer's output device.
 
-This change has not been published as a GitHub release.
+Publication uses the tagged GitHub Actions workflow after the Windows checks pass.

@@ -1,10 +1,13 @@
-# Scarlet Dawn PC v1.0.10 – Gamepad support
+# Scarlet Dawn PC v1.0.11 - Automatic stereo fix generation
 
-- Added XInput gamepad support for up to two players, with stick aiming, adjustable aim speed, and automatic mouse cursor hiding during gamepad play.
-- Added in-game pause and settings via View or Back on a controller, or Esc on the keyboard. Aim and reticle changes apply when you resume.
-- Setup and launch can import the existing stereo fix automatically when matching, verified audio files are available in your local dump or installation.
-- Updated Game Library with installed versions, display and input summaries, per-game release checks, and a mouse and lightgun input test.
+- Setup and the launcher now generate the complete verified stereo fix locally from your own supported Scarlet Dawn Export game data. No separate stereo patch or extra ACF files are required.
+- Existing installations can generate the missing files directly from their Game folder at the next game start. The stereo fix must be enabled in Settings.
+- Stereo output uses your default audio device, rather than a fixed device name.
+- Switching the fix off restores the verified original audio configuration. Existing verified legacy patches remain supported.
+- Source resources and generated files are checked with SHA-256 before use. Your original dump is not modified.
 
-Enable **Gamepad (XInput)** under **Settings > Controls** and save. Press **Menu / Start** to join.
+Update through **Updates > Download and install**, keep **Settings > Apply stereo sound fix** enabled, and restart the game. For a manual update, extract the new Local Builder ZIP, run **Setup.cmd**, and select your existing installation folder. Keep your own supported Export game data available if Setup asks for it. Your settings and local game data are retained.
 
-Update from **Updates > Download and install**. For a manual update, extract the Local Builder ZIP, run `Setup.cmd`, and select your existing installation and game files.
+Validation included generation without prepatched audio files, clean/existing Setup, stereo/original switching, cache recovery, legacy compatibility, updater regression checks, and a real-game launch with the generated patch mounted. Listening quality was not assessed.
+
+The download contains launcher/compatibility code only. No game or audio assets are included or downloaded; the required files are generated on the user's computer from their own game data.

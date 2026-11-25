@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "version": "v1.0.10",
+  "version": "v1.0.11",
   "files": [
     {
       "path": "Launcher.cs",
@@ -16,7 +16,7 @@
     },
     {
       "path": "RELEASE-NOTES.md",
-      "sha256": "c321e584f183d082342ffc103075b007ecfb98e5a740e6040cc07c8e99e6265e"
+      "sha256": "aa637b2500c3067abec9b1c9c4b840f7b50de76867171ee5987a286605164ab6"
     },
     {
       "path": "ScarletLightgun.dll",
@@ -64,7 +64,7 @@
     },
     {
       "path": "scarlet-version.txt",
-      "sha256": "286aeb688cc2982e4b225bf6fde694006c82f6e05e1b191fd1d5c94275c3946e"
+      "sha256": "eeae2737eaec260fcfdfff772dfb478cda16a1a9478d873437d73cc5e8e8e8a3"
     }
   ]
 }
