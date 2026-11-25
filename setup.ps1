@@ -68,10 +68,10 @@ try {
     if (Test-ScarletGameRunning $InstallDir) { throw 'Close the running game before installing.' }
     [void][IO.Directory]::CreateDirectory($work)
     if (!$installed) {
-        Import-ScarletStereoFiles $InstallDir @($dump)
+        Complete-ScarletStereoFiles $InstallDir @($dump)
         if ($serial -eq $ScarletStereoAcf -and
             (![IO.File]::Exists((Join-Path $local ('Audio/'+$ScarletStereoName))) -or
-             (Get-ScarletSHA256 (Join-Path $local ('Audio/'+$ScarletStereoName))) -ne $ScarletStereoHash)) {
+             (Get-ScarletSHA256 (Join-Path $local ('Audio/'+$ScarletStereoName))) -notin $ScarletStereoHash,$ScarletLegacyStereoHash)) {
             throw 'The supplied stereo patch failed verification.'
         }
         $stagedGame=Join-Path $work 'Game'
@@ -86,8 +86,8 @@ try {
         }
         [IO.Directory]::Move($stagedGame,$game)
     }
-    # Existing installs also import files added to Game or an explicitly selected dump.
-    Import-ScarletStereoFiles $InstallDir @($dump)
+    # Generate missing stereo resources for existing installations too.
+    Complete-ScarletStereoFiles $InstallDir @($dump)
     if ($dump) { Set-ScarletFile (Join-Path $local 'dump-path.txt') $dump }
     $program=Join-Path $work 'program'
     [void][IO.Directory]::CreateDirectory($program)

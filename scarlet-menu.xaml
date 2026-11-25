@@ -83,7 +83,7 @@
                         <CheckBox Name="VSync" Content="Vertical sync"/>
                         <Button Name="AdvancedOpen" Content="Advanced Settings"/>
                         <TextBlock Text="Audio" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
-                        <CheckBox Name="AudioFix" Content="Apply stereo sound fix"/>
+                        <CheckBox Name="AudioFix" Content="Apply stereo sound fix" ToolTip="Generated locally from your own game data. No extra audio files are required. Applies on the next game start."/>
                         <CheckBox Name="MuteCreditSounds" Content="Mute Start and coin sounds" ToolTip="Applies when the game starts."/>
                         <TextBlock Text="Controls" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,5"/>
                         <TextBlock Text="Crosshair"/>

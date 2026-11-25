@@ -11,7 +11,10 @@ if($VerifiedAudio){
  $original=[IO.File]::ReadAllBytes((Join-Path $VerifiedAudio 'NewProject.original.acf'))
  $stereo=[IO.File]::ReadAllBytes((Join-Path $VerifiedAudio 'NewProject.stereo.acf'))
  $pak=[IO.File]::ReadAllBytes((Join-Path $VerifiedAudio $ScarletStereoName))
- Assert ((Hash $original) -eq $ScarletOriginalAcf -and (Hash $stereo) -eq $ScarletStereoAcf -and (Hash $pak) -eq $ScarletStereoHash) 'The supplied real audio fixture is unsupported'
+ Assert ((Hash $original) -eq $ScarletOriginalAcf -and (Hash $stereo) -eq $ScarletStereoAcf -and (Hash $pak) -in $ScarletStereoHash,$ScarletLegacyStereoHash) 'The supplied real audio fixture is unsupported'
+ # This fixture checks import independently of generation/migration.
+ $ScarletStereoHash=Hash $pak
+ $ScarletLegacyStereoHash='0000000000000000000000000000000000000000000000000000000000000000'
 }else{
  # Synthetic, non-game bytes exercise the same verification/IO paths in CI.
  $original=[Text.Encoding]::UTF8.GetBytes('synthetic original ACF')
@@ -79,7 +82,7 @@ $package=Join-Path $base 'builder';[void][IO.Directory]::CreateDirectory($packag
 $manifest=Get-Content -LiteralPath (Join-Path $repo 'package-manifest.json') -Raw | ConvertFrom-Json
 foreach($name in @($manifest.files.path)+@('package-manifest.json','setup.ps1','Setup.cmd')){Copy-Item -LiteralPath (Join-Path $repo $name) -Destination (Join-Path $package $name)}
 $settings=Join-Path $package 'scarlet-settings.ps1'
-[IO.File]::AppendAllText($settings,"`n`$ScarletOriginalAcf='$ScarletOriginalAcf'`n`$ScarletStereoAcf='$ScarletStereoAcf'`n`$ScarletStereoHash='$ScarletStereoHash'`nfunction New-ScarletStartInfo([string]`$Root,`$Settings){Sync-ScarletStereo `$Root `$Settings.StereoFix}`n")
+[IO.File]::AppendAllText($settings,"`n`$ScarletOriginalAcf='$ScarletOriginalAcf'`n`$ScarletStereoAcf='$ScarletStereoAcf'`n`$ScarletStereoHash='$ScarletStereoHash'`n`$ScarletLegacyStereoHash='$ScarletLegacyStereoHash'`nfunction New-ScarletStartInfo([string]`$Root,`$Settings){Sync-ScarletStereo `$Root `$Settings.StereoFix}`n")
 $specPath=Join-Path $package 'scarlet-aim-patch.json';$spec=Get-Content -LiteralPath $specPath -Raw | ConvertFrom-Json
 $spec.SourceSHA256=Get-ScarletSHA256 (Join-Path $dump 'Hodzero/Binaries/Win64/Hodzero-Win64-Shipping.exe')
 [IO.File]::WriteAllText($specPath,($spec | ConvertTo-Json -Depth 20))

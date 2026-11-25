@@ -12,7 +12,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "48fa8d6f8b25b492973fb5fe4cf0faf54aaad35a2100c1242a85b342e554446f"
+      "sha256": "8046065ab0e42571debaf03dbcd17914631c3dd71e9c648bbd71610f296e7820"
     },
     {
       "path": "RELEASE-NOTES.md",
@@ -48,7 +48,7 @@
     },
     {
       "path": "scarlet-menu.xaml",
-      "sha256": "2289bf8f66c0fe47c0af68573bf5b8a4d2cebc3c1901684afb1c94f127760fc8"
+      "sha256": "e93cdb823c3a19fdc49868715170ce19c8f74d223340b35edb8f031b91b9af28"
     },
     {
       "path": "scarlet-reticle.h",
@@ -56,7 +56,7 @@
     },
     {
       "path": "scarlet-settings.ps1",
-      "sha256": "69002f2b67ecd26d71bccfc264510950d852a699746ec00ea2ddef0468a05f88"
+      "sha256": "c900df42141070aec4d34732b7bc45737a94e83e6dd60f2b1220e19fdf1d30a0"
     },
     {
       "path": "scarlet-update.ps1",

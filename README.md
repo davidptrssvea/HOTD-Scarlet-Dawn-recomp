@@ -37,9 +37,13 @@ Upplösning, renderingsskala, kvalitet, fönsterläge och VSync kan också välj
 
 ## Ljud
 
-**Apply stereo sound fix** använder vår verifierade stereopatch och dess matchande ACF-filer från din egen dump eller spelmapp. Setup importerar dem automatiskt även till en befintlig installation och sparar sökvägen till den valda dumpen. Vid spelstart letar startaren också efter filer som har lagts i **Game** efter installationen, samt i den sparade dumpen. De hashverifierade filerna lagras i **Local/Audio**; ingen manuell kopiering dit behövs. Originaldumpen ändras inte.
+**Apply stereo sound fix** skapar nu den kompletta stereopatchen lokalt från din egen stödda originaldump eller den installerade spelkopian under **Game**. Du behöver inte hämta en separat patch eller leta efter extra ACF-filer. Setup och startaren extraherar de verifierade originalresurserna ur spelets PAK, tillämpar ljudroutingändringarna och sparar resultaten i **Local/Audio**. Alla källresurser och resultat kontrolleras med SHA-256 innan de används. Originaldumpen ändras inte.
 
-När stereofixen aktiveras används den matchande stereokonfigurationen tillsammans med tvåkanalig CRI/WASAPI. När den stängs av återställs den verifierade originalkonfigurationen och endast vår hanterade stereo-PAK tas bort ur spelkopians Paks-mapp. Originalet kan hämtas från en originaldump eller en kvarvarande **NewProject.acf.original** / **NewProject.acf.previous**. Okända patchvarianter avvisas. Om en del av paret saknas kan startaren inte skapa den: lägg våra verifierade filer i dumpen eller spelmappen och prova igen. Inga spel- eller ljudassets följer med paketet eller laddas ned av importen. Valet tillämpas nästa gång spelet startas.
+När fixen aktiveras används tvåkanalig CRI/WASAPI med datorns standardenhet för ljud. När den stängs av återställs den verifierade originalkonfigurationen och vår hanterade stereo-PAK tas bort ur spelkopians Paks-mapp. Äldre verifierade patchar stöds och ersätts automatiskt av den portabla varianten när originalresurserna finns tillgängliga. Okända patchvarianter avvisas. Valet tillämpas nästa gång spelet startas. Inga spel- eller ljudassets följer med paketet eller laddas ned.
+
+### Stereo fix: missing ACF files
+
+Update the launcher, keep **Apply stereo sound fix** enabled, and start the game again. The launcher now generates the complete verified stereo patch and both ACF variants from your existing **Game** data. You do not need any additional downloads or prepatched ACF files. If the original game data is missing or unsupported, rerun **Setup.cmd** with your own supported Scarlet Dawn Export dump and select your existing installation folder. Your saved settings are retained.
 
 ## Spelstyrning
 

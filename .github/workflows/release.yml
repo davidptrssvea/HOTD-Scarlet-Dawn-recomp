@@ -17,6 +17,9 @@ jobs:
       - name: Test verified local stereo audio import
         shell: powershell
         run: ./.release/test_stereo_import.ps1
+      - name: Test stereo generation from clean original data
+        shell: powershell
+        run: ./.release/test_stereo_generation.ps1
       - name: Validate the builder package
         shell: powershell
         run: |

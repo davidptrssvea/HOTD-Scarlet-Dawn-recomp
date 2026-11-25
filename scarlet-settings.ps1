@@ -1,5 +1,6 @@
 ﻿$ScarletStereoName = 'Hodzero-CodexStereo_P.pak'
-$ScarletStereoHash = '1D3FFBA7E20A81B5551FE8120C05ACE197E274A27A0A9F3F80439EF17FC001F9'
+$ScarletStereoHash = '394B7B5BAD478A259F73F57522575DA69DEF621093D087A2202431F5650ECA8D'
+$ScarletLegacyStereoHash = '1D3FFBA7E20A81B5551FE8120C05ACE197E274A27A0A9F3F80439EF17FC001F9'
 $ScarletStereoAcf = '44B012215BCCB0B56C1F10C088C72CCCEBF379E011205C6F3395438CA14CF64E'
 $ScarletOriginalAcf = '67E5808A0B3742D2A351DD54FA4C0C673C54DF2E8D30BB0E6BA690FDE8AB1812'
 
@@ -197,7 +198,7 @@ function Set-ScarletInputDefaults([string]$Path) {
     Set-ScarletFile $Path (($lines -join "`r`n") + "`r`n")
 }
 
-# Search known local layouts only. Never download or synthesize game audio.
+# Search known local layouts only. All audio resources come from the user's local game data.
 function Get-ScarletAudioRoots([string]$Root, [string[]]$Sources) {
     $paths=[Collections.Generic.List[string]]::new()
     $paths.Add($Root)
@@ -222,6 +223,7 @@ function Get-ScarletAudioRoots([string]$Root, [string[]]$Sources) {
 function Import-ScarletStereoFiles([string]$Root, [string[]]$Sources) {
     $wanted=@{
         $ScarletStereoHash=$ScarletStereoName
+        $ScarletLegacyStereoHash=$ScarletStereoName
         $ScarletStereoAcf='NewProject.stereo.acf'
         $ScarletOriginalAcf='NewProject.original.acf'
     }
@@ -229,9 +231,9 @@ function Import-ScarletStereoFiles([string]$Root, [string[]]$Sources) {
     $ready=@{}
     foreach ($hash in $wanted.Keys) {
         $target=Join-Path $audio $wanted[$hash]
-        if ([IO.File]::Exists($target) -and (Get-ScarletSHA256 $target) -eq $hash) { $ready[$hash]=$true }
+        if ([IO.File]::Exists($target) -and (Get-ScarletSHA256 $target) -eq $hash) { $ready[$wanted[$hash]]=$true }
     }
-    if ($ready.Count -eq $wanted.Count) { return }
+    if ($ready.Count -eq 3) { return }
     $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($source in Get-ScarletAudioRoots $Root $Sources) {
         $candidates=[Collections.Generic.List[string]]::new()
@@ -253,13 +255,237 @@ function Import-ScarletStereoFiles([string]$Root, [string[]]$Sources) {
             $sha=[Security.Cryptography.SHA256]::Create()
             try { $hash=[BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-','') }
             finally { $sha.Dispose() }
-            if (!$wanted.ContainsKey($hash) -or $ready[$hash]) { continue }
+            if (!$wanted.ContainsKey($hash) -or $ready[$wanted[$hash]]) { continue }
             # Hash the same bytes we write; files in the dump/game stay untouched.
             Set-ScarletBytes (Join-Path $audio $wanted[$hash]) $bytes
-            $ready[$hash]=$true
-            if ($ready.Count -eq $wanted.Count) { return }
+            $ready[$wanted[$hash]]=$true
+            if ($ready.Count -eq 3) { return }
         }
     }
+}
+
+
+function Get-ScarletStereoRecipe {
+    if (!$script:ScarletStereoRecipe) {
+        # Verified Export resources and routing edits, applied only to the user's own PAK.
+        $script:ScarletStereoRecipe=@'
+{
+  "PakSize": 7847593660,
+  "Exports": [
+    {
+      "path": "Hodzero/Config/DefaultEngine.ini",
+      "length": 11369,
+      "codec": 1,
+      "chunks": [
+        [
+          65099849,
+          3267
+        ]
+      ],
+      "sha256": "DE54F75EE4B784EC3D1CB3FDFC9BC4429EEF1E6DDA4E2F1A5A3ECC35BAE8FA87"
+    },
+    {
+      "path": "Hodzero/Content/HodZero_v1/ADX/NewProject.uasset",
+      "length": 615,
+      "codec": 1,
+      "chunks": [
+        [
+          5119351,
+          322
+        ]
+      ],
+      "sha256": "79CF5C178DD4F89DF92C5A921EAA543A7BB1048CE475A43ABD3500141833FD00"
+    },
+    {
+      "path": "Hodzero/Content/HodZero_v1/ADX/NewProject.uexp",
+      "length": 32612,
+      "codec": 1,
+      "chunks": [
+        [
+          156151881,
+          5950
+        ]
+      ],
+      "sha256": "34D279A0AAD1FE6D208D5E62625995727326C4D43850557DAE9BED9D84EC7EF2"
+    }
+  ],
+  "AcfOffset": 32,
+  "AcfLength": 32576,
+  "StereoAcfSHA256": "44B012215BCCB0B56C1F10C088C72CCCEBF379E011205C6F3395438CA14CF64E",
+  "OriginalAcfSHA256": "67E5808A0B3742D2A351DD54FA4C0C673C54DF2E8D30BB0E6BA690FDE8AB1812",
+  "OriginalAcfEdits": [
+    [2438,128],[2453,62],[2454,204],[2455,204],[2456,205],[2469,62],[2470,204],[2471,204],
+    [2472,205],[2485,62],[2486,204],[2487,204],[2488,205],[2501,62],[2502,204],[2503,204],
+    [2504,205],[2517,63],[2518,128],[2565,62],[2614,128],[2615,0],[2616,0],[2645,62],
+    [2646,153],[2647,153],[2648,154],[2661,63],[2662,128],[22838,0],[22839,0],[22843,0],
+    [22847,1],[22868,62],[22869,153],[22870,153],[22871,154],[23168,62],[23169,153],[23170,153],
+    [23171,154]
+  ],
+  "EmbeddedEdits": [
+    [2438,51],[2439,51],[2440,51],[2470,128],[2485,62],[2486,25],[2487,153],[2488,154],
+    [2501,62],[2502,25],[2503,153],[2504,154],[2517,62],[2518,25],[2519,153],[2520,154],
+    [2533,62],[2534,25],[2535,153],[2536,154],[2549,63],[2550,128],[2646,128],[2647,0],
+    [2648,0],[2678,53],[2679,4],[2680,243],[2693,63],[2694,128],[2710,51],[2711,51],
+    [2712,51],[2757,62],[2758,25],[2759,153],[2760,154],[2773,62],[2774,25],[2775,153],
+    [2776,154],[2789,62],[2790,25],[2791,153],[2792,154],[2805,62],[2806,25],[2807,153],
+    [2808,154],[2885,0],[2886,0],[2950,53],[2951,4],[2952,243],[2997,0],[2998,0],
+    [3013,0],[3014,0],[3045,0],[3046,0],[3061,0],[3062,0],[3077,0],[3078,0],
+    [3093,0],[3094,0],[3095,0],[3096,0],[3109,0],[3110,0],[3125,0],[3126,0],
+    [3157,0],[3158,0],[3173,0],[3174,0],[3189,0],[3190,0],[3205,0],[3206,0],
+    [3221,0],[3222,0],[3237,0],[3238,0],[3253,0],[3254,0],[3269,0],[3270,0],
+    [3285,0],[3286,0],[9781,63],[9782,53],[9783,4],[9784,243],[9785,63],[9786,53],
+    [9787,4],[9788,243],[9845,63],[9846,53],[9847,4],[9848,243],[9861,0],[9862,0],
+    [9863,0],[9864,0],[9881,63],[9882,53],[9883,4],[9884,243],[9897,0],[9898,0],
+    [9899,0],[9900,0],[10025,63],[10029,63],[10033,0],[10034,0],[10057,63],[10061,63],
+    [10065,0],[10066,0],[10089,63],[10090,53],[10091,4],[10092,243],[10093,63],[10094,53],
+    [10095,4],[10096,243],[10097,0],[10098,0],[11817,0],[11818,0],[11849,0],[11850,0],
+    [11913,0],[11914,0],[11945,0],[11946,0],[11977,0],[11978,0],[12217,63],[12218,53],
+    [12219,4],[12220,243],[12221,63],[12222,53],[12223,4],[12224,243],[12281,63],[12282,53],
+    [12283,4],[12284,243],[12297,0],[12298,0],[12299,0],[12300,0],[12317,63],[12318,53],
+    [12319,4],[12320,243],[12333,0],[12334,0],[12335,0],[12336,0],[12765,0],[12766,0],
+    [12801,0],[12802,0],[13149,63],[13150,128],[13157,0],[13158,0],[13185,63],[13186,128],
+    [13189,0],[13190,0],[13221,0],[13222,0],[13425,0],[13426,0],[13433,0],[13434,0],
+    [13457,0],[13458,0],[13469,0],[13470,0],[13481,63],[13482,53],[13483,4],[13484,243],
+    [13485,63],[13486,53],[13487,4],[13488,243],[13545,63],[13546,53],[13547,4],[13548,243],
+    [13581,63],[13582,53],[13583,4],[13584,243],[13769,63],[13770,53],[13771,4],[13772,243],
+    [13773,63],[13774,53],[13775,4],[13776,243],[13833,63],[13834,53],[13835,4],[13836,243],
+    [13849,0],[13850,0],[13869,63],[13870,53],[13871,4],[13872,243],[13885,0],[13886,0],
+    [14013,63],[14017,63],[14021,0],[14022,0],[14045,63],[14049,63],[14053,0],[14054,0],
+    [14077,63],[14078,53],[14079,4],[14080,243],[14081,63],[14082,53],[14083,4],[14084,243],
+    [15793,0],[15794,0],[15825,0],[15826,0],[16205,63],[16206,53],[16207,4],[16208,243],
+    [16209,63],[16210,53],[16211,4],[16212,243],[16213,0],[16214,0],[16249,0],[16250,0],
+    [16269,63],[16270,53],[16271,4],[16272,243],[16285,0],[16286,0],[16305,63],[16306,53],
+    [16307,4],[16308,243],[16321,0],[16322,0],[16357,0],[16358,0],[16393,0],[16394,0],
+    [16737,0],[16738,0],[16773,0],[16774,0],[16809,0],[16810,0],[16845,0],[16846,0],
+    [16881,0],[16882,0],[16917,0],[16918,0],[16953,0],[16954,0],[16989,0],[16990,0],
+    [17209,0],[17210,0],[17245,0],[17246,0],[17281,0],[17282,0],[17317,0],[17318,0],
+    [17353,0],[17354,0],[17389,0],[17390,0],[17469,63],[17470,53],[17471,4],[17472,243],
+    [17473,63],[17474,53],[17475,4],[17476,243],[17477,0],[17478,0],[17513,0],[17514,0],
+    [17533,63],[17534,53],[17535,4],[17536,243],[17549,0],[17550,0],[17569,63],[17570,53],
+    [17571,4],[17572,243],[17585,0],[17586,0],[17621,0],[17622,0],[17657,0],[17658,0],
+    [17697,0],[17698,0],[17729,0],[17730,0],[17793,0],[17794,0],[17825,0],[17826,0],
+    [17857,0],[17858,0],[18045,0],[18046,0],[18077,0],[18078,0],[18141,0],[18142,0],
+    [18173,0],[18174,0],[18205,0],[18206,0],[18405,0],[18406,0],[18437,0],[18438,0],
+    [18501,0],[18502,0],[18729,0],[18730,0],[18761,0],[18762,0],[19029,0],[19030,0],
+    [19061,0],[19062,0],[19317,0],[19318,0],[19349,0],[19350,0],[19413,0],[19414,0],
+    [19621,0],[19622,0],[19653,0],[19654,0],[19685,0],[19686,0],[19881,0],[19882,0],
+    [19885,0],[19886,0],[19913,0],[19914,0],[19917,0],[19918,0],[19989,0],[19990,0],
+    [19991,0],[19992,0],[20097,0],[20098,0],[20099,0],[20100,0],[20233,0],[20234,0],
+    [20265,0],[20266,0],[20361,0],[20362,0],[20393,0],[20394,0],[20577,0],[20578,0],
+    [20609,0],[20610,0],[20933,0],[20934,0],[20965,0],[20966,0],[21257,0],[21258,0],
+    [21289,0],[21290,0],[21557,0],[21558,0],[21589,0],[21590,0],[21857,0],[21858,0],
+    [21889,0],[21890,0],[22141,0],[22142,0],[22177,0],[22178,0],[22213,0],[22214,0],
+    [22249,0],[22250,0],[22285,0],[22286,0],[22321,0],[22322,0],[22357,0],[22358,0],
+    [22393,0],[22394,0],[22409,0],[22410,0],[22445,0],[22446,0],[22481,0],[22482,0],
+    [22517,0],[22518,0],[22553,0],[22554,0],[22589,0],[22590,0],[22625,0],[22626,0],
+    [22661,0],[22662,0],[22870,0],[22871,0],[22875,0],[22879,1],[22900,62],[22901,153],
+    [22902,153],[22903,154],[23200,62],[23201,153],[23202,153],[23203,154]
+  ],
+  "EmbeddedSHA256": "2900AB01E04CDE9457AE2D6CFAA62BDD63991472A0483AF14E5E4D0BFA5D87E2",
+  "IniSHA256": "0B94C9AF539246588FC2B808D6756AC417E89E9526D1147C00FA4D586A493AC0",
+  "OutputSHA256": "394B7B5BAD478A259F73F57522575DA69DEF621093D087A2202431F5650ECA8D"
+}
+'@ | ConvertFrom-Json
+    }
+    $script:ScarletStereoRecipe
+}
+
+function Assert-ScarletAudioBytes([byte[]]$Bytes,[string]$Expected) {
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try { $actual=[BitConverter]::ToString($sha.ComputeHash($Bytes)).Replace('-','') }
+    finally { $sha.Dispose() }
+    if ($actual -ne $Expected) { throw 'Local stereo resource verification failed.' }
+}
+
+function New-ScarletAudioPak([System.Collections.IDictionary]$Exports) {
+    $pak=[IO.BinaryWriter]::new([IO.MemoryStream]::new())
+    $index=[IO.BinaryWriter]::new([IO.MemoryStream]::new())
+    $sha=[Security.Cryptography.SHA1]::Create()
+    try {
+        Write-ScarletPakString $index '../../../'
+        $index.Write([int]$Exports.Count)
+        foreach ($name in $Exports.Keys) {
+            $data=$Exports[$name]
+            $digest=$sha.ComputeHash($data)
+            Write-ScarletPakString $index $name
+            Write-ScarletPakEntry $index $pak.BaseStream.Position $data $digest
+            Write-ScarletPakEntry $pak 0 $data $digest
+            $pak.Write($data)
+        }
+        $indexOffset=$pak.BaseStream.Position
+        $indexData=$index.BaseStream.ToArray()
+        $pak.Write($indexData)
+        $pak.Write([byte]0)
+        $pak.Write([uint32]0x5a6f12e1)
+        $pak.Write([int]4)
+        $pak.Write([long]$indexOffset)
+        $pak.Write([long]$indexData.Length)
+        $pak.Write($sha.ComputeHash($indexData))
+        return ,$pak.BaseStream.ToArray()
+    } finally { $pak.Dispose(); $index.Dispose(); $sha.Dispose() }
+}
+
+function New-ScarletStereoResources([string]$GamePak,$Recipe=(Get-ScarletStereoRecipe)) {
+    $source=[IO.BinaryReader]::new([IO.File]::OpenRead($GamePak))
+    try {
+        if ($source.BaseStream.Length -ne $Recipe.PakSize) { throw 'Unsupported Export PAK size.' }
+        $exports=[ordered]@{}
+        foreach ($entry in $Recipe.Exports) {
+            $chunks=@($entry.chunks | ForEach-Object { $_[0]; $_[1] })
+            $exports[$entry.path]=Read-ScarletPakExport $source $chunks $entry.length $entry.sha256
+        }
+    } finally { $source.Dispose() }
+    $uexpName=$Recipe.Exports[2].path
+    $uexp=$exports[$uexpName]
+    $stereo=[byte[]]::new($Recipe.AcfLength)
+    [Array]::Copy($uexp,[int]$Recipe.AcfOffset,$stereo,0,$stereo.Length)
+    Assert-ScarletAudioBytes $stereo $Recipe.StereoAcfSHA256
+    $original=[byte[]]$stereo.Clone()
+    foreach ($edit in $Recipe.OriginalAcfEdits) { $original[[int]$edit[0]]=[byte]$edit[1] }
+    Assert-ScarletAudioBytes $original $Recipe.OriginalAcfSHA256
+    foreach ($edit in $Recipe.EmbeddedEdits) { $uexp[[int]$edit[0]]=[byte]$edit[1] }
+    Assert-ScarletAudioBytes $uexp $Recipe.EmbeddedSHA256
+    $iniName=$Recipe.Exports[0].path
+    $ini=[Text.Encoding]::UTF8.GetString($exports[$iniName])
+    $ini=$ini.Replace('OutputsLogAtom=False','OutputsLogAtom=True').Replace('SoundRendererType=5','SoundRendererType=1').Replace('+AsrRackConfig=(SoundRendererType=9)','+AsrRackConfig=(SoundRendererType=1)')
+    # Let CRI select the user's default output device, rather than a developer's monitor.
+    foreach ($pair in @(@('Hardware2',''),@('Hardware3',''),@('WASAPI_BitsPerSample','16'),@('WASAPI_SamplingRate','48000'),@('WASAPI_NumChannels','2'))) {
+        $ini=[regex]::Replace($ini,('(?m)^'+$pair[0]+'=[^\r\n]*'),($pair[0]+'='+$pair[1]))
+    }
+    $exports[$iniName]=[Text.Encoding]::UTF8.GetBytes($ini)
+    Assert-ScarletAudioBytes $exports[$iniName] $Recipe.IniSHA256
+    $pak=New-ScarletAudioPak $exports
+    Assert-ScarletAudioBytes $pak $Recipe.OutputSHA256
+    # Nothing is written until every original and generated resource has passed verification.
+    @{ 'NewProject.original.acf'=$original; 'NewProject.stereo.acf'=$stereo; $ScarletStereoName=$pak }
+}
+
+function Complete-ScarletStereoFiles([string]$Root,[string[]]$Sources) {
+    $script:ScarletStereoGenerationError=''
+    Import-ScarletStereoFiles $Root $Sources
+    $audio=Join-Path $Root 'Local/Audio'
+    $wanted=@{ $ScarletStereoName=$ScarletStereoHash; 'NewProject.original.acf'=$ScarletOriginalAcf; 'NewProject.stereo.acf'=$ScarletStereoAcf }
+    $complete=$true
+    foreach ($name in $wanted.Keys) {
+        $path=Join-Path $audio $name
+        if (![IO.File]::Exists($path) -or (Get-ScarletSHA256 $path) -ne $wanted[$name]) { $complete=$false; break }
+    }
+    if ($complete) { return }
+    foreach ($source in Get-ScarletAudioRoots $Root $Sources) {
+        $pak=Join-Path $source 'Hodzero/Content/Paks/Hodzero-WindowsNoEditor.pak'
+        if (![IO.File]::Exists($pak)) { continue }
+        try { $resources=New-ScarletStereoResources $pak }
+        catch { $script:ScarletStereoGenerationError=$_.Exception.Message; continue }
+        # IO/write failures must propagate; do not mistake them for an unsupported dump.
+        foreach ($name in $resources.Keys) {
+            $path=Join-Path $audio $name
+            if (![IO.File]::Exists($path) -or (Get-ScarletSHA256 $path) -ne $wanted[$name]) {
+                Set-ScarletBytes $path $resources[$name]
+            }
+        }
+        return
+    }
+    # Existing verified legacy caches still work if the original dump is offline.
 }
 
 function Resolve-ScarletDumpPath([string]$Path) {
@@ -280,7 +506,7 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
             throw 'The local game copy must use ordinary folders.'
         }
     }
-    Import-ScarletStereoFiles $Root
+    Complete-ScarletStereoFiles $Root
     $target = Join-Path $folder $ScarletStereoName
     $patch = Join-Path $Root ("Local/Audio/" + $ScarletStereoName)
     $acf = Join-Path $Root 'Game/Hodzero/Content/Hodzero_V1/ADX/NewProject.acf'
@@ -292,19 +518,20 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
         throw 'NewProject.acf differs from the known stereo and original variants.'
     }
     if ($current -ne $wanted -and (![IO.File]::Exists($replacement) -or (Get-ScarletSHA256 $replacement) -ne $wanted)) {
-        throw 'The verified audio configuration is missing. Put our matching stereo patch and ACF files in your own dump or Game folder, or rerun Setup with that dump.'
+        throw "The audio configuration could not be generated from the local game data. $script:ScarletStereoGenerationError Rerun Setup with your original supported Export dump."
     }
     $exists = [IO.File]::Exists($target)
-    if ($exists -and ((Get-ScarletSHA256 $target) -ne $ScarletStereoHash)) {
+    if ($exists -and ((Get-ScarletSHA256 $target) -notin $ScarletStereoHash,$ScarletLegacyStereoHash)) {
         throw 'The existing stereo patch differs from the verified copy. Move that patch out of Paks before switching audio.'
     }
-    if ($Enabled -and !$exists -and (![IO.File]::Exists($patch) -or (Get-ScarletSHA256 $patch) -ne $ScarletStereoHash)) {
-        throw 'Our verified stereo PAK is missing. Put the matching stereo patch in your dump or Game/Hodzero/Content/Paks, or rerun Setup with that dump.'
+    $patchHash=if ([IO.File]::Exists($patch)) { Get-ScarletSHA256 $patch } else { $null }
+    if ($Enabled -and !$exists -and $patchHash -notin $ScarletStereoHash,$ScarletLegacyStereoHash) {
+        throw "The stereo patch could not be generated from the local game data. $script:ScarletStereoGenerationError Rerun Setup with your original supported Export dump."
     }
     if ($current -ne $wanted) {
         Set-ScarletBytes $acf ([IO.File]::ReadAllBytes($replacement))
     }
-    if ($Enabled -and !$exists) {
+    if ($Enabled -and (!$exists -or ($patchHash -eq $ScarletStereoHash -and (Get-ScarletSHA256 $target) -ne $ScarletStereoHash))) {
         Set-ScarletBytes $target ([IO.File]::ReadAllBytes($patch))
     } elseif (!$Enabled -and $exists) {
         [IO.File]::Delete($target)
@@ -312,8 +539,7 @@ function Sync-ScarletStereo([string]$Root, [bool]$Enabled) {
 }
 
 
-function Read-ScarletCreditExport($Reader, [long[]]$Chunks, [int]$Length, [string]$ExpectedHash,
-                                 [int]$CueOffset, [int]$PreviousImport) {
+function Read-ScarletPakExport($Reader, [long[]]$Chunks, [int]$Length, [string]$ExpectedHash) {
     $export = [byte[]]::new($Length)
     $at = 0
     for ($i = 0; $i -lt $Chunks.Count; $i += 2) {
@@ -335,8 +561,16 @@ function Read-ScarletCreditExport($Reader, [long[]]$Chunks, [int]$Length, [strin
     $sha = [Security.Cryptography.SHA256]::Create()
     try { $actual = [BitConverter]::ToString($sha.ComputeHash($export)).Replace('-','') }
     finally { $sha.Dispose() }
-    if ($at -ne $Length -or $actual -ne $ExpectedHash -or $export[$CueOffset-1] -ne 0x20 -or
-        [BitConverter]::ToInt32($export, $CueOffset) -ne $PreviousImport) {
+    if ($at -ne $Length -or $actual -ne $ExpectedHash) {
+        throw 'The game package has an unsupported audio export.'
+    }
+    return ,$export
+}
+
+function Read-ScarletCreditExport($Reader, [long[]]$Chunks, [int]$Length, [string]$ExpectedHash,
+                                 [int]$CueOffset, [int]$PreviousImport) {
+    $export=Read-ScarletPakExport $Reader $Chunks $Length $ExpectedHash
+    if ($export[$CueOffset-1] -ne 0x20 -or [BitConverter]::ToInt32($export, $CueOffset) -ne $PreviousImport) {
         throw 'The game package has an unsupported Start or coin sound export.'
     }
     # Clear the cue argument in this Blueprint only. The same cue can still be used in other menus.
